@@ -11,9 +11,9 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export function AuthCard({ mode }: { mode: "login" | "signup" }) {
   const router = useRouter();
-  const [email, setEmail] = useState("demo@dynara.ai");
-  const [password, setPassword] = useState("dynara-demo");
-  const [name, setName] = useState("Alex Morgan");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null);

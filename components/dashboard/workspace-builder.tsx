@@ -15,14 +15,13 @@ import {
   type WorkspacePreferences
 } from "@/lib/dashboard/workspace-state";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import type { ConnectedApp, WorkspaceAction, WorkspaceBlock, WorkspaceSchema } from "@/types/workspace";
+import type { AdapterPrimitive, ConnectedApp, WorkspaceAction, WorkspaceSchema } from "@/types/workspace";
 
-type FigmaSyncResult = {
-  fileName: string;
+type FigmaPrimitiveContext = {
   fileKey: string;
-  componentCount: number;
-  variableCount: number;
-  blocks: WorkspaceBlock[];
+  fileName: string;
+  primitives: AdapterPrimitive[];
+  summary: string;
 };
 
 export function WorkspaceBuilder({
@@ -60,12 +59,12 @@ export function WorkspaceBuilder({
   const [figmaFileUrl, setFigmaFileUrl] = useState("");
   const [figmaSyncing, setFigmaSyncing] = useState(false);
   const [figmaError, setFigmaError] = useState<string | null>(null);
-  const [figmaLastSync, setFigmaLastSync] = useState<{ fileName: string; componentCount: number; variableCount: number } | null>(null);
+  const [figmaContext, setFigmaContext] = useState<FigmaPrimitiveContext | null>(null);
   const connectedCount = connectedApps.filter((app) => app.status === "connected").length;
   const figmaApp = connectedApps.find((app) => app.id === "figma");
   const figmaConnected = figmaApp?.status === "connected";
 
-  async function syncFromFigma() {
+  async function loadFigmaPrimitives() {
     if (!figmaFileUrl.trim()) {
       setFigmaError("Paste a Figma file URL first.");
       return;
@@ -79,53 +78,49 @@ export function WorkspaceBuilder({
       const session = supabase ? (await supabase.auth.getSession()).data.session : null;
 
       if (!session?.access_token) {
-        setFigmaError("Sign in to sync from Figma.");
+        setFigmaError("Sign in first.");
         return;
       }
 
-      const response = await fetch("/api/figma/sync", {
+      // Step 1: load primitives from Figma
+      const primRes = await fetch("/api/figma/primitives", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({ fileUrl: figmaFileUrl.trim() })
       });
 
-      const payload = (await response.json().catch(() => ({}))) as Partial<FigmaSyncResult> & { error?: string };
+      const primPayload = (await primRes.json().catch(() => ({}))) as Partial<FigmaPrimitiveContext> & { error?: string };
 
-      if (!response.ok || !payload.blocks) {
-        setFigmaError(payload.error ?? "Figma sync failed.");
+      if (!primRes.ok || !primPayload.primitives) {
+        setFigmaError(primPayload.error ?? "Could not load Figma primitives.");
         return;
       }
 
-      const syncResult = payload as FigmaSyncResult;
-      setFigmaLastSync({
-        fileName: syncResult.fileName,
-        componentCount: syncResult.componentCount,
-        variableCount: syncResult.variableCount
+      const ctx = primPayload as FigmaPrimitiveContext;
+      setFigmaContext(ctx);
+
+      // Step 2: generate workspace using primitives + current prompt as intent
+      const genRes = await fetch("/api/generate-workspace", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: prompt.trim() || `Create a workspace for ${ctx.fileName}`, primitives: ctx.primitives })
       });
 
-      const updatedWorkspace: WorkspaceSchema = activeWorkspace
-        ? {
-            ...activeWorkspace,
-            layout: syncResult.blocks,
-            savedAt: new Date().toISOString()
-          }
-        : {
-            id: `figma-${Date.now()}`,
-            name: syncResult.fileName,
-            mode: "design_system",
-            description: `Live data from ${syncResult.fileName}`,
-            source: "generated",
-            layout: syncResult.blocks,
-            actions: [],
-            savedAt: new Date().toISOString()
-          };
+      const genPayload = (await genRes.json().catch(() => ({}))) as { schema?: WorkspaceSchema };
+      if (!genPayload.schema) {
+        setFigmaError("Workspace generation failed.");
+        return;
+      }
+
+      const workspace: WorkspaceSchema = {
+        ...genPayload.schema,
+        id: activeWorkspace?.id ?? `figma-${Date.now()}`,
+        savedAt: new Date().toISOString()
+      };
 
       const withActivity = addActivity(
-        updatedWorkspace,
-        `Synced ${syncResult.componentCount} components and ${syncResult.variableCount} tokens from Figma`,
+        workspace,
+        `Generated workspace from ${ctx.fileName} — ${ctx.primitives.filter((p) => p.metadata?.kind === "component").length} components loaded`,
         "Figma"
       );
 
@@ -270,12 +265,10 @@ export function WorkspaceBuilder({
                   Figma connected
                 </div>
 
-                {figmaLastSync ? (
+                {figmaContext ? (
                   <div className="rounded-lg bg-primary/5 p-3 text-sm">
-                    <p className="font-semibold text-slate-900">{figmaLastSync.fileName}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {figmaLastSync.componentCount} components · {figmaLastSync.variableCount} tokens
-                    </p>
+                    <p className="font-semibold text-slate-900">{figmaContext.fileName}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{figmaContext.summary}</p>
                   </div>
                 ) : null}
 
@@ -301,18 +294,18 @@ export function WorkspaceBuilder({
 
                 <Button
                   className="w-full"
-                  onClick={syncFromFigma}
+                  onClick={loadFigmaPrimitives}
                   disabled={figmaSyncing || !figmaFileUrl.trim()}
                 >
                   {figmaSyncing ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Syncing from Figma…
+                      Loading primitives…
                     </>
                   ) : (
                     <>
                       <RefreshCw className="h-4 w-4" />
-                      {figmaLastSync ? "Re-sync" : "Sync from Figma"}
+                      {figmaContext ? "Re-generate workspace" : "Generate workspace from Figma"}
                     </>
                   )}
                 </Button>

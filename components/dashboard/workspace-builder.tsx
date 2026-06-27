@@ -273,15 +273,30 @@ export function WorkspaceBuilder({
                 ) : null}
 
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-slate-600">Figma file URL</label>
-                  <Input
-                    value={figmaFileUrl}
-                    onChange={(e) => setFigmaFileUrl(e.target.value)}
-                    placeholder="https://www.figma.com/file/…"
-                    className="text-sm"
-                  />
+                  <label className="text-xs font-semibold text-slate-600">Figma file</label>
+                  <div className="relative">
+                    <Input
+                      value={figmaFileUrl}
+                      onChange={(e) => { setFigmaFileUrl(e.target.value); setFigmaError(null); }}
+                      placeholder="Paste any Figma URL…"
+                      className="pr-20 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const text = await navigator.clipboard.readText();
+                          if (text.includes("figma.com")) { setFigmaFileUrl(text.trim()); setFigmaError(null); }
+                          else setFigmaError("Clipboard doesn't contain a Figma URL.");
+                        } catch { setFigmaError("Allow clipboard access to use this."); }
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded px-2 py-1 text-xs font-semibold text-primary hover:bg-primary/10"
+                    >
+                      Paste
+                    </button>
+                  </div>
                   <p className="text-xs text-muted-foreground">
-                    Open a file in Figma, copy the URL from your browser.
+                    In Figma: open any file → copy the URL from your browser → paste here. Works with any Figma URL.
                   </p>
                 </div>
 

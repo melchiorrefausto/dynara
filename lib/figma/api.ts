@@ -75,10 +75,10 @@ export function getResolvedColorValue(
 
 export function parseFigmaFileKey(input: string): string | null {
   const trimmed = input.trim();
-  if (/^[a-zA-Z0-9]{10,}$/.test(trimmed)) {
-    return trimmed;
-  }
-  const match = trimmed.match(/figma\.com\/(?:file|design)\/([a-zA-Z0-9]+)/);
+  // Raw key
+  if (/^[a-zA-Z0-9]{10,}$/.test(trimmed)) return trimmed;
+  // Any figma.com URL: /file/, /design/, /proto/, /board/, etc.
+  const match = trimmed.match(/figma\.com\/(?:file|design|proto|board|slides)\/([a-zA-Z0-9]+)/);
   return match?.[1] ?? null;
 }
 

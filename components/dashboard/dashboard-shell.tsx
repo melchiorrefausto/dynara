@@ -95,40 +95,34 @@ export function DashboardShell({ settings = false }: { settings?: boolean }) {
     async function loadSession() {
       let dashboardLoadedFromSupabase = false;
 
-      if (supabase) {
-        const { data } = await supabase.auth.getSession();
+      if (!supabase) {
+        router.replace("/login");
+        return;
+      }
 
-        if (!data.session?.user) {
-          router.replace("/login");
-          return;
-        }
+      const { data: { user } } = await supabase.auth.getUser();
 
-        const metadata = data.session.user.user_metadata;
-        setSupabaseUserId(data.session.user.id);
-        setUser({
-          email: data.session.user.email ?? "user@dynara.ai",
-          name: typeof metadata?.name === "string" ? metadata.name : data.session.user.email ?? "Dynara User"
-        });
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
 
-        const dashboardState = await loadDashboardState(supabase, data.session.user);
+      const metadata = user.user_metadata;
+      setSupabaseUserId(user.id);
+      setUser({
+        email: user.email ?? "user@dynara.ai",
+        name: typeof metadata?.name === "string" ? metadata.name : user.email ?? "Dynara User"
+      });
 
-        if (dashboardState) {
-          setWorkspaces(dashboardState.workspaces);
-          setConnectedApps(dashboardState.connectedApps);
-          setPreferences(dashboardState.preferences);
-          setActiveWorkspaceId(dashboardState.workspaces[0]?.id ?? "");
-          setPersistenceMode("supabase");
-          dashboardLoadedFromSupabase = true;
-        }
-      } else {
-        const localSession = readJson<DashboardUser | null>("dynara-session", null);
+      const dashboardState = await loadDashboardState(supabase, user);
 
-        if (!localSession) {
-          router.replace("/login");
-          return;
-        }
-
-        setUser(localSession);
+      if (dashboardState) {
+        setWorkspaces(dashboardState.workspaces);
+        setConnectedApps(dashboardState.connectedApps);
+        setPreferences(dashboardState.preferences);
+        setActiveWorkspaceId(dashboardState.workspaces[0]?.id ?? "");
+        setPersistenceMode("supabase");
+        dashboardLoadedFromSupabase = true;
       }
 
       if (dashboardLoadedFromSupabase) {
@@ -300,10 +294,7 @@ export function DashboardShell({ settings = false }: { settings?: boolean }) {
 
   async function getSupabaseAccessToken() {
     const supabase = createSupabaseBrowserClient();
-    if (!supabase) {
-      return null;
-    }
-
+    if (!supabase) return null;
     const { data } = await supabase.auth.getSession();
     return data.session?.access_token ?? null;
   }

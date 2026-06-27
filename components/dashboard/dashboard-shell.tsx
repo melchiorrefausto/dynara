@@ -41,6 +41,15 @@ import {
   type WorkspacePreferences
 } from "@/lib/dashboard/workspace-state";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import {
+  deleteWorkspaceFromSupabase,
+  loadDashboardState,
+  saveConnectedAppToSupabase,
+  savePreferencesToSupabase,
+  saveWorkspaceToSupabase
+} from "@/lib/supabase/dashboard-store";
+import { getConnector } from "@/lib/connectors/registry";
+import type { ConnectorProvider } from "@/lib/connectors/types";
 import { cn, initials } from "@/lib/utils";
 import type { ConnectedApp, WorkspaceSchema } from "@/types/workspace";
 
@@ -70,6 +79,8 @@ export function DashboardShell({ settings = false }: { settings?: boolean }) {
   const [activeWorkspaceId, setActiveWorkspaceId] = useState("");
   const [connectedApps, setConnectedApps] = useState<ConnectedApp[]>(defaultConnectedApps);
   const [preferences, setPreferences] = useState<WorkspacePreferences>(defaultPreferences);
+  const [persistenceMode, setPersistenceMode] = useState<"local" | "supabase">("local");
+  const [supabaseUserId, setSupabaseUserId] = useState<string | null>(null);
 
   const activeWorkspace = useMemo(
     () => workspaces.find((workspace) => workspace.id === activeWorkspaceId) ?? workspaces[0],
@@ -82,6 +93,8 @@ export function DashboardShell({ settings = false }: { settings?: boolean }) {
     const supabase = createSupabaseBrowserClient();
 
     async function loadSession() {
+      let dashboardLoadedFromSupabase = false;
+
       if (supabase) {
         const { data } = await supabase.auth.getSession();
 
@@ -91,10 +104,22 @@ export function DashboardShell({ settings = false }: { settings?: boolean }) {
         }
 
         const metadata = data.session.user.user_metadata;
+        setSupabaseUserId(data.session.user.id);
         setUser({
           email: data.session.user.email ?? "user@dynara.ai",
           name: typeof metadata?.name === "string" ? metadata.name : data.session.user.email ?? "Dynara User"
         });
+
+        const dashboardState = await loadDashboardState(supabase, data.session.user);
+
+        if (dashboardState) {
+          setWorkspaces(dashboardState.workspaces);
+          setConnectedApps(dashboardState.connectedApps);
+          setPreferences(dashboardState.preferences);
+          setActiveWorkspaceId(dashboardState.workspaces[0]?.id ?? "");
+          setPersistenceMode("supabase");
+          dashboardLoadedFromSupabase = true;
+        }
       } else {
         const localSession = readJson<DashboardUser | null>("dynara-session", null);
 
@@ -106,6 +131,11 @@ export function DashboardShell({ settings = false }: { settings?: boolean }) {
         setUser(localSession);
       }
 
+      if (dashboardLoadedFromSupabase) {
+        setAuthReady(true);
+        return;
+      }
+
       const storedWorkspaces = readJson<WorkspaceSchema[]>(workspacesStorageKey, []);
       const storedApps = readJson<ConnectedApp[]>(appsStorageKey, defaultConnectedApps);
       const storedPreferences = readJson<WorkspacePreferences>(preferencesStorageKey, defaultPreferences);
@@ -115,6 +145,7 @@ export function DashboardShell({ settings = false }: { settings?: boolean }) {
       setConnectedApps(storedApps);
       setPreferences(storedPreferences);
       setActiveWorkspaceId(storedWorkspaces.some((workspace) => workspace.id === storedActive) ? storedActive : storedWorkspaces[0]?.id ?? "");
+      setPersistenceMode("local");
       setAuthReady(true);
     }
 
@@ -130,7 +161,21 @@ export function DashboardShell({ settings = false }: { settings?: boolean }) {
     writeJson(activeWorkspaceStorageKey, activeWorkspaceId);
     writeJson(appsStorageKey, connectedApps);
     writeJson(preferencesStorageKey, preferences);
-  }, [activeWorkspaceId, authReady, connectedApps, preferences, workspaces]);
+
+    if (persistenceMode === "supabase" && supabaseUserId) {
+      const supabase = createSupabaseBrowserClient();
+
+      if (supabase) {
+        Promise.all([
+          ...workspaces.map((workspace) => saveWorkspaceToSupabase(supabase, supabaseUserId, workspace)),
+          ...connectedApps.map((app) => saveConnectedAppToSupabase(supabase, supabaseUserId, app)),
+          savePreferencesToSupabase(supabase, supabaseUserId, preferences)
+        ]).catch(() => {
+          setPersistenceMode("local");
+        });
+      }
+    }
+  }, [activeWorkspaceId, authReady, connectedApps, persistenceMode, preferences, supabaseUserId, workspaces]);
 
   async function logout() {
     const supabase = createSupabaseBrowserClient();
@@ -169,20 +214,98 @@ export function DashboardShell({ settings = false }: { settings?: boolean }) {
 
       return next;
     });
+
+    if (persistenceMode === "supabase" && supabaseUserId) {
+      const supabase = createSupabaseBrowserClient();
+      if (supabase) {
+        deleteWorkspaceFromSupabase(supabase, supabaseUserId, workspaceId).catch(() => setPersistenceMode("local"));
+      }
+    }
   }
 
-  function toggleApp(appId: string) {
-    setConnectedApps((current) =>
-      current.map((app) =>
-        app.id === appId
-          ? {
-              ...app,
-              status: app.status === "connected" ? "available" : "connected",
-              lastSync: app.status === "connected" ? undefined : "just now"
-            }
-          : app
-      )
-    );
+  async function toggleApp(appId: string) {
+    const currentApp = connectedApps.find((app) => app.id === appId);
+    if (!currentApp) {
+      return;
+    }
+
+    if (appId === "figma") {
+      const sessionToken = await getSupabaseAccessToken();
+
+      if (!sessionToken) {
+        window.alert("Sign in with Supabase before connecting Figma.");
+        return;
+      }
+
+      if (currentApp.status === "connected") {
+        const response = await fetch("/api/connectors/figma/disconnect", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${sessionToken}`
+          }
+        });
+
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => ({}))) as { error?: string };
+          window.alert(payload.error ?? "Could not disconnect Figma.");
+          return;
+        }
+
+        const nextApp: ConnectedApp = {
+          id: "figma",
+          name: currentApp.name,
+          status: "available"
+        };
+        setConnectedApps((current) => current.map((app) => (app.id === appId ? nextApp : app)));
+        return;
+      }
+
+      const response = await fetch("/api/connectors/figma/start", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${sessionToken}`
+        }
+      });
+      const payload = (await response.json().catch(() => ({}))) as { authUrl?: string; error?: string };
+
+      if (!response.ok || !payload.authUrl) {
+        window.alert(payload.error ?? "Could not start Figma OAuth.");
+        return;
+      }
+
+      window.location.href = payload.authUrl;
+      return;
+    }
+
+    const connector = getConnector(appId as ConnectorProvider);
+    const connection =
+      currentApp.status === "connected" ? await connector.disconnect() : await connector.connect();
+
+    const nextApp: ConnectedApp = {
+      id: appId,
+      name: currentApp.name,
+      status: connection.status,
+      lastSync: connection.lastSync
+    };
+
+    setConnectedApps((current) => current.map((app) => (app.id === appId ? nextApp : app)));
+
+    if (persistenceMode === "supabase" && supabaseUserId) {
+      const supabase = createSupabaseBrowserClient();
+      if (supabase) {
+        saveConnectedAppToSupabase(supabase, supabaseUserId, nextApp).catch(() => setPersistenceMode("local"));
+      }
+    }
+  }
+
+  async function getSupabaseAccessToken() {
+    const supabase = createSupabaseBrowserClient();
+    if (!supabase) {
+      return null;
+    }
+
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token ?? null;
   }
 
   function selectApp(appId: string) {

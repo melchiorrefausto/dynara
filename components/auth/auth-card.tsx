@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, CheckCircle2, LockKeyhole, Mail, UserRound } from "lucide-react";
+import { ArrowRight, CheckCircle2, Eye, EyeOff, LockKeyhole, Mail, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DynaraLogo } from "@/components/ui/logo";
@@ -14,6 +14,7 @@ export function AuthCard({ mode }: { mode: "login" | "signup" }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null);
@@ -136,11 +137,19 @@ export function AuthCard({ mode }: { mode: "login" | "signup" }) {
             <div className="relative">
               <LockKeyhole className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
               <Input
-                className="pl-10"
-                type="password"
+                className="pl-10 pr-10"
+                type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-3 top-3.5 text-muted-foreground hover:text-slate-700"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
             </div>
           </label>
 

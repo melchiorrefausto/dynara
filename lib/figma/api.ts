@@ -28,11 +28,18 @@ type FigmaColor = { r: number; g: number; b: number; a: number };
 
 type FigmaApiError = { status: number; err?: string; message?: string };
 
+export type FigmaStyle = {
+  name: string;
+  styleType: string;
+  description?: string;
+};
+
 export type FigmaFileSyncData = {
   fileName: string;
   components: FigmaComponent[];
   variables: FigmaVariable[];
   collections: FigmaVariableCollection[];
+  styles: Record<string, FigmaStyle>;
 };
 
 function isFigmaColor(value: unknown): value is FigmaColor {
@@ -91,7 +98,21 @@ async function figmaFetch<T>(path: string, token: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-type FigmaFileMetaResponse = { name: string; lastModified: string };
+type FigmaNode = {
+  id: string;
+  name: string;
+  type: string;
+  children?: FigmaNode[];
+  description?: string;
+};
+
+type FigmaFileDocumentResponse = {
+  name: string;
+  lastModified: string;
+  document: FigmaNode;
+  styles?: Record<string, { name: string; styleType: string; description?: string }>;
+};
+
 type FigmaComponentsResponse = { meta: { components: FigmaComponent[] } };
 type FigmaVariablesResponse = {
   meta: {
@@ -100,23 +121,46 @@ type FigmaVariablesResponse = {
   };
 };
 
+function extractComponentNodes(node: FigmaNode, results: FigmaComponent[] = []): FigmaComponent[] {
+  if (node.type === "COMPONENT" || node.type === "COMPONENT_SET") {
+    results.push({
+      key: node.id,
+      file_key: "",
+      node_id: node.id,
+      name: node.name,
+      description: node.description ?? ""
+    });
+  }
+  for (const child of node.children ?? []) {
+    extractComponentNodes(child, results);
+  }
+  return results;
+}
+
 export async function syncFigmaFile(
   token: string,
   fileKey: string
 ): Promise<FigmaFileSyncData> {
-  const [fileMeta, componentsMeta, variablesMeta] = await Promise.allSettled([
-    figmaFetch<FigmaFileMetaResponse>(`/v1/files/${fileKey}?depth=1`, token),
+  const [fileFull, publishedComponents, variablesMeta] = await Promise.allSettled([
+    figmaFetch<FigmaFileDocumentResponse>(`/v1/files/${fileKey}`, token),
     figmaFetch<FigmaComponentsResponse>(`/v1/files/${fileKey}/components`, token),
     figmaFetch<FigmaVariablesResponse>(`/v1/files/${fileKey}/variables/local`, token)
   ]);
 
-  const fileName =
-    fileMeta.status === "fulfilled" ? fileMeta.value.name : "Figma File";
+  if (fileFull.status === "rejected") {
+    throw new Error((fileFull.reason as Error).message ?? "Could not reach Figma API.");
+  }
 
-  const components =
-    componentsMeta.status === "fulfilled"
-      ? componentsMeta.value.meta.components
-      : [];
+  const fileName = fileFull.value.name;
+
+  // Prefer published components list; fall back to walking the document tree
+  let components: FigmaComponent[] =
+    publishedComponents.status === "fulfilled" && publishedComponents.value.meta.components.length > 0
+      ? publishedComponents.value.meta.components
+      : extractComponentNodes(fileFull.value.document);
+
+  // Also extract styles (colors, text, effects) as token-like items
+  const styles = fileFull.value.styles ?? {};
 
   const variables =
     variablesMeta.status === "fulfilled"
@@ -128,15 +172,5 @@ export async function syncFigmaFile(
       ? Object.values(variablesMeta.value.meta.variableCollections)
       : [];
 
-  if (
-    fileMeta.status === "rejected" &&
-    componentsMeta.status === "rejected" &&
-    variablesMeta.status === "rejected"
-  ) {
-    throw new Error(
-      (fileMeta.reason as Error).message ?? "Could not reach Figma API."
-    );
-  }
-
-  return { fileName, components, variables, collections };
+  return { fileName, components, variables, collections, styles };
 }

@@ -82,22 +82,45 @@ export async function POST(request: Request) {
 }
 
 function buildWorkspaceBlocks(syncData: Awaited<ReturnType<typeof syncFigmaFile>>): WorkspaceBlock[] {
-  const { fileName, components, variables, collections } = syncData;
+  const { fileName, components, variables, collections, styles } = syncData;
+
+  // Build token items from Variables first, fall back to Styles
+  const tokenItems: TokenItem[] = [];
+
+  for (const variable of variables) {
+    if (variable.hiddenFromPublishing) continue;
+    if (variable.resolvedType === "COLOR") {
+      const hex = getResolvedColorValue(variable, collections);
+      if (hex) tokenItems.push({ id: variable.id, name: variable.name, value: hex, category: "Color" });
+    } else if (variable.resolvedType === "FLOAT") {
+      const nameLower = variable.name.toLowerCase();
+      const category = nameLower.includes("radius") || nameLower.includes("corner") ? "Radius" : "Spacing";
+      const collection = collections.find((c) => c.variableIds.includes(variable.id));
+      const raw = collection ? variable.valuesByMode[collection.defaultModeId] : undefined;
+      if (typeof raw === "number") tokenItems.push({ id: variable.id, name: variable.name, value: `${raw}px`, category });
+    }
+  }
+
+  // If no variables, use Figma Styles as tokens
+  if (tokenItems.length === 0) {
+    let i = 0;
+    for (const [id, style] of Object.entries(styles)) {
+      const category =
+        style.styleType === "FILL" ? "Color"
+        : style.styleType === "TEXT" ? "Typography"
+        : style.styleType === "EFFECT" ? "Effect"
+        : "Color";
+      tokenItems.push({ id, name: style.name, value: style.styleType, category });
+      if (++i >= 50) break;
+    }
+  }
+
+  const tokenCount = tokenItems.length;
+
   const blocks: WorkspaceBlock[] = [];
 
-  blocks.push({
-    type: "metric_card",
-    title: "Components",
-    value: String(components.length),
-    tone: "purple"
-  });
-
-  blocks.push({
-    type: "metric_card",
-    title: "Design Tokens",
-    value: String(variables.filter((v) => !v.hiddenFromPublishing).length),
-    tone: "blue"
-  });
+  blocks.push({ type: "metric_card", title: "Components", value: String(components.length), tone: "purple" });
+  blocks.push({ type: "metric_card", title: "Design Tokens", value: String(tokenCount), tone: "blue" });
 
   const visibleComponents = components.slice(0, 30);
   if (visibleComponents.length > 0) {
@@ -113,31 +136,6 @@ function buildWorkspaceBlocks(syncData: Awaited<ReturnType<typeof syncFigmaFile>
     });
   }
 
-  const tokenItems: TokenItem[] = [];
-
-  for (const variable of variables) {
-    if (variable.hiddenFromPublishing) continue;
-
-    if (variable.resolvedType === "COLOR") {
-      const hex = getResolvedColorValue(variable, collections);
-      if (hex) {
-        tokenItems.push({ id: variable.id, name: variable.name, value: hex, category: "Color" });
-      }
-    } else if (variable.resolvedType === "FLOAT") {
-      const nameLower = variable.name.toLowerCase();
-      const category = nameLower.includes("radius") || nameLower.includes("corner")
-        ? "Radius"
-        : nameLower.includes("space") || nameLower.includes("gap") || nameLower.includes("padding")
-        ? "Spacing"
-        : "Spacing";
-      const collection = collections.find((c) => c.variableIds.includes(variable.id));
-      const raw = collection ? variable.valuesByMode[collection.defaultModeId] : undefined;
-      if (typeof raw === "number") {
-        tokenItems.push({ id: variable.id, name: variable.name, value: `${raw}px`, category });
-      }
-    }
-  }
-
   if (tokenItems.length > 0) {
     blocks.push({ type: "token_table", title: "Design Tokens", items: tokenItems });
   }
@@ -146,18 +144,8 @@ function buildWorkspaceBlocks(syncData: Awaited<ReturnType<typeof syncFigmaFile>
     type: "activity_feed",
     title: "Recent activity",
     items: [
-      {
-        id: "sync-1",
-        actor: "Figma",
-        event: `Synced ${components.length} components from "${fileName}"`,
-        time: "just now"
-      },
-      {
-        id: "sync-2",
-        actor: "Dynara",
-        event: `Found ${variables.length} design tokens`,
-        time: "just now"
-      }
+      { id: "sync-1", actor: "Figma", event: `Synced ${components.length} components from "${fileName}"`, time: "just now" },
+      { id: "sync-2", actor: "Dynara", event: `Found ${tokenCount} design tokens`, time: "just now" }
     ]
   });
 

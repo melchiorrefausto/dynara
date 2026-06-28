@@ -23,8 +23,9 @@ export default defineConfig(({ mode }) => {
   // Build UI (React iframe → single HTML)
   return {
     plugins: [react(), viteSingleFile()],
+    root: resolve(__dirname, "src/ui"),
     build: {
-      outDir: "dist",
+      outDir: resolve(__dirname, "dist"),
       rollupOptions: {
         input: resolve(__dirname, "src/ui/index.html")
       },

@@ -81,11 +81,12 @@ export function DynaraPanel({ onClose }: { onClose: () => void }) {
 
   return (
     <div style={{
+      all: "initial" as const,
       position: "fixed", left: pos.x, top: pos.y, width: 300,
       background: "#fff", borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
       border: "1px solid #e2e8f0", fontFamily: "-apple-system,BlinkMacSystemFont,'Inter',sans-serif",
       fontSize: 13, color: "#0f172a", zIndex: 2147483647, overflow: "hidden",
-      userSelect: "none"
+      userSelect: "none", pointerEvents: "auto", display: "block"
     }}>
       {/* Header — drag handle */}
       <div

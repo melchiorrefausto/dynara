@@ -1,0 +1,1 @@
+(function(){"use strict";chrome.runtime.onInstalled.addListener(()=>{console.log("Dynara installed")}),chrome.runtime.onMessage.addListener((r,u,t)=>{if(r.type==="GET_TAB_INFO")return chrome.tabs.query({active:!0,currentWindow:!0},n=>{var e;t({url:((e=n[0])==null?void 0:e.url)??""})}),!0})})();

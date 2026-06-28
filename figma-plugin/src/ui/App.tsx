@@ -114,7 +114,7 @@ export function App() {
   const [state, dispatch] = useReducer(reducer, { phase: "loading" });
   const promptRef = useRef<HTMLTextAreaElement>(null);
 
-  // Listen for messages from code.ts
+  // Listen for messages from code.ts, then request primitives once listener is live
   useEffect(() => {
     const handler = (event: MessageEvent) => {
       const msg = event.data?.pluginMessage;
@@ -124,6 +124,8 @@ export function App() {
       }
     };
     window.addEventListener("message", handler);
+    // Request primitives NOW that the listener is registered
+    postToPlugin({ type: "GET_PRIMITIVES" });
     return () => window.removeEventListener("message", handler);
   }, []);
 

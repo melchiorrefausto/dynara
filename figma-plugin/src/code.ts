@@ -82,5 +82,5 @@ figma.ui.onmessage = async (msg: PluginMessage) => {
   }
 };
 
-// Load primitives immediately on plugin open
-extractPrimitives();
+// Wait for UI to signal it's ready before pushing primitives
+// (avoids race condition where postMessage fires before the listener is registered)

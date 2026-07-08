@@ -1,0 +1,16 @@
+{
+  "name": "Numerix (well-known)",
+  "color": "#0ea5e9",
+  "panels": [
+    { "id": "game-selector", "label": "Game Selector", "selector": "[data-dynara-panel='game-selector']" },
+    { "id": "stats", "label": "Statistics", "selector": "[data-dynara-panel='stats']" },
+    { "id": "generator", "label": "Number Generator", "selector": "[data-dynara-panel='generator']" }
+  ],
+  "views": [
+    { "id": "full", "label": "Full dashboard", "panels": ["game-selector", "stats", "generator"] },
+    { "id": "focus", "label": "Generator only", "panels": ["generator"] }
+  ],
+  "actions": [
+    { "id": "generate", "label": "Generate numbers" }
+  ]
+}

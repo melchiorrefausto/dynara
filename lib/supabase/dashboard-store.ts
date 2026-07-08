@@ -1,13 +1,6 @@
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { defaultConnectedApps, defaultPreferences, type WorkspacePreferences } from "@/lib/dashboard/workspace-state";
-import type { ConnectedApp, WorkspaceSchema } from "@/types/workspace";
-
-type WorkspaceRow = {
-  id: string;
-  name: string;
-  mode: string;
-  schema: WorkspaceSchema;
-};
+import type { ConnectedApp } from "@/types/workspace";
 
 type ConnectedAppRow = {
   provider: string;
@@ -21,7 +14,6 @@ type ProfileRow = {
 };
 
 export type DashboardState = {
-  workspaces: WorkspaceSchema[];
   connectedApps: ConnectedApp[];
   preferences: WorkspacePreferences;
 };
@@ -54,46 +46,20 @@ export async function loadDashboardState(supabase: SupabaseClient, user: User): 
     }
   }
 
-  const [workspaceResult, appResult] = await Promise.all([
-    supabase
-      .from("workspaces")
-      .select("id,name,mode,schema")
-      .order("updated_at", { ascending: false })
-      .returns<WorkspaceRow[]>(),
-    supabase
-      .from("connected_apps")
-      .select("provider,name,status,last_sync_at")
-      .order("created_at", { ascending: true })
-      .returns<ConnectedAppRow[]>()
-  ]);
+  const appResult = await supabase
+    .from("connected_apps")
+    .select("provider,name,status,last_sync_at")
+    .order("created_at", { ascending: true })
+    .returns<ConnectedAppRow[]>();
 
-  if (workspaceResult.error || appResult.error) {
+  if (appResult.error) {
     return null;
   }
 
   return {
-    workspaces: workspaceResult.data?.map((row) => row.schema) ?? [],
     connectedApps: mergeConnectedApps(appResult.data ?? []),
     preferences: profileResult.data?.preferences ?? defaultPreferences
   };
-}
-
-export async function saveWorkspaceToSupabase(
-  supabase: SupabaseClient,
-  userId: string,
-  workspace: WorkspaceSchema
-) {
-  return supabase.from("workspaces").upsert({
-    id: workspace.id,
-    user_id: userId,
-    name: workspace.name,
-    mode: workspace.mode,
-    schema: workspace
-  });
-}
-
-export async function deleteWorkspaceFromSupabase(supabase: SupabaseClient, userId: string, workspaceId: string) {
-  return supabase.from("workspaces").delete().eq("user_id", userId).eq("id", workspaceId);
 }
 
 export async function saveConnectedAppToSupabase(supabase: SupabaseClient, userId: string, app: ConnectedApp) {

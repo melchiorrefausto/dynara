@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Demo — Dynara SDK (fetched /.well-known/dynara.json)</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Inter", sans-serif; margin: 0; background: #0f172a; color: #e2e8f0; }
+  header { padding: 20px 28px; border-bottom: 1px solid #1e293b; }
+  header h1 { margin: 0; font-size: 18px; }
+  header p { margin: 4px 0 0; font-size: 12px; color: #94a3b8; }
+  main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 24px; max-width: 720px; }
+  section { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 16px; }
+  section h2 { margin: 0 0 8px; font-size: 14px; color: #f1f5f9; }
+  section p { margin: 0; font-size: 12px; color: #94a3b8; }
+  #log { grid-column: 1 / -1; font-family: monospace; font-size: 12px; color: #4ade80; background: #020617; border-radius: 8px; padding: 10px; min-height: 20px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Numerix (demo — well-known)</h1>
+  <p>No <code>Dynara.init()</code> call here — the SDK fetches <code>/.well-known/dynara.json</code> instead.</p>
+</header>
+<main>
+  <section data-dynara-panel="game-selector" data-dynara-label="Game Selector">
+    <h2>Game Selector</h2>
+    <p>SuperEnalotto, Lotto, 10eLotto...</p>
+  </section>
+  <section data-dynara-panel="stats" data-dynara-label="Statistics">
+    <h2>Statistics Overview</h2>
+    <p>Frequency charts, hot/cold numbers.</p>
+  </section>
+  <section data-dynara-panel="generator" data-dynara-label="Number Generator">
+    <h2>Number Generator</h2>
+    <p>Generate combinations. Counter: <span id="counter">0</span></p>
+  </section>
+  <div id="log">Action log: (nothing triggered yet)</div>
+</main>
+
+<script src="/sdk/v1.js"></script>
+<script>
+  // No Dynara.init() — relies entirely on /.well-known/dynara.json.
+  var count = 0;
+  Dynara.action("generate", function () {
+    count++;
+    document.getElementById("counter").textContent = String(count);
+    document.getElementById("log").textContent =
+      "Action log: \"generate\" triggered " + count + " time(s) at " + new Date().toLocaleTimeString();
+  });
+</script>
+</body>
+</html>

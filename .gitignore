@@ -15,3 +15,6 @@ node_modules/
 
 # Misc
 *.log
+
+# Supabase CLI local cache
+supabase/.temp/

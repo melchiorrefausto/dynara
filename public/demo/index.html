@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Numerix-style demo — Dynara SDK (inline manifest)</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Inter", sans-serif; margin: 0; background: #0f172a; color: #e2e8f0; }
+  header { padding: 20px 28px; border-bottom: 1px solid #1e293b; }
+  header h1 { margin: 0; font-size: 18px; }
+  header p { margin: 4px 0 0; font-size: 12px; color: #94a3b8; }
+  main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 24px; max-width: 960px; }
+  section { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 16px; }
+  section h2 { margin: 0 0 8px; font-size: 14px; color: #f1f5f9; }
+  section p { margin: 0; font-size: 12px; color: #94a3b8; }
+  #log { grid-column: 1 / -1; font-family: monospace; font-size: 12px; color: #4ade80; background: #020617; border-radius: 8px; padding: 10px; min-height: 20px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Numerix (demo)</h1>
+  <p>Inline manifest via <code>Dynara.init()</code> — open the Dynara side panel to control these sections.</p>
+</header>
+<main>
+  <section data-dynara-panel="game-selector" data-dynara-label="Game Selector">
+    <h2>Game Selector</h2>
+    <p>SuperEnalotto, Lotto, 10eLotto...</p>
+  </section>
+  <section data-dynara-panel="stats" data-dynara-label="Statistics">
+    <h2>Statistics Overview</h2>
+    <p>Frequency charts, hot/cold numbers.</p>
+  </section>
+  <section data-dynara-panel="generator" data-dynara-label="Number Generator">
+    <h2>Number Generator</h2>
+    <p>Generate combinations. Counter: <span id="counter">0</span></p>
+  </section>
+  <section data-dynara-panel="ai" data-dynara-label="AI Picks">
+    <h2>AI Recommendation</h2>
+    <p>Model-suggested picks for this draw.</p>
+  </section>
+  <section data-dynara-panel="history" data-dynara-label="Extraction History">
+    <h2>Extraction History</h2>
+    <p>Past draws and results.</p>
+  </section>
+  <section data-dynara-panel="analysis" data-dynara-label="Analysis">
+    <h2>Match Variance Analysis</h2>
+    <p>Consensus and variance across strategies.</p>
+  </section>
+  <div id="log">Action log: (nothing triggered yet)</div>
+</main>
+
+<script src="/sdk/v1.js"></script>
+<script>
+  Dynara.init({
+    name: "Numerix",
+    color: "#6366f1",
+    panels: [
+      { id: "game-selector", label: "Game Selector", selector: "[data-dynara-panel='game-selector']" },
+      { id: "stats", label: "Statistics", selector: "[data-dynara-panel='stats']" },
+      { id: "generator", label: "Number Generator", selector: "[data-dynara-panel='generator']" },
+      { id: "ai", label: "AI Picks", selector: "[data-dynara-panel='ai']" },
+      { id: "history", label: "Extraction History", selector: "[data-dynara-panel='history']" },
+      { id: "analysis", label: "Analysis", selector: "[data-dynara-panel='analysis']" }
+    ],
+    views: [
+      { id: "full", label: "Full dashboard", panels: ["game-selector", "stats", "generator", "ai", "history", "analysis"] },
+      { id: "focus", label: "Generator only", panels: ["game-selector", "generator"] },
+      { id: "analysis-mode", label: "Analysis mode", panels: ["stats", "history", "analysis"] }
+    ],
+    actions: [
+      { id: "generate", label: "Generate numbers" }
+    ]
+  });
+
+  var count = 0;
+  Dynara.action("generate", function () {
+    count++;
+    document.getElementById("counter").textContent = String(count);
+    document.getElementById("log").textContent =
+      "Action log: \"generate\" triggered " + count + " time(s) at " + new Date().toLocaleTimeString();
+  });
+</script>
+</body>
+</html>

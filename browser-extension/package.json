@@ -3,11 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "npm run build:bg && npm run build:content && npm run build:popup",
+    "build": "npm run build:bg && npm run build:content && npm run build:sidepanel",
     "build:bg": "BUILD_TARGET=bg vite build",
     "build:content": "BUILD_TARGET=content vite build",
-    "build:popup": "BUILD_TARGET=popup vite build",
-    "dev": "npm run build:bg && npm run build:content && npm run build:popup -- --watch"
+    "build:sidepanel": "BUILD_TARGET=sidepanel vite build",
+    "dev": "npm run build:bg && npm run build:content && npm run build:sidepanel -- --watch"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.268",

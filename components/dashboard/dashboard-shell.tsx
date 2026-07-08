@@ -1,98 +1,92 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  AlertTriangle,
   Bell,
   CheckCircle2,
   ChevronDown,
-  Figma,
-  FileCode2,
   Home,
-  Import,
   LayoutDashboard,
   LogOut,
   Menu,
   Moon,
   Plus,
   Settings,
-  Slack,
-  Sparkles,
-  UploadCloud,
-  UserRound,
   X
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DynaraLogo } from "@/components/ui/logo";
-import { WorkspaceBuilder } from "@/components/dashboard/workspace-builder";
+import { IntegrationBuilder } from "@/components/dashboard/integration-builder";
 import {
-  activeWorkspaceStorageKey,
   appsStorageKey,
   defaultConnectedApps,
   defaultPreferences,
-  createBlankWorkspace,
-  initialWorkspaces,
   preferencesStorageKey,
   readJson,
-  workspacesStorageKey,
   writeJson,
   type WorkspacePreferences
 } from "@/lib/dashboard/workspace-state";
+import {
+  activeManifestStorageKey,
+  createBlankManifest,
+  manifestsStorageKey
+} from "@/lib/dashboard/manifest-state";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
-  deleteWorkspaceFromSupabase,
   loadDashboardState,
   saveConnectedAppToSupabase,
-  savePreferencesToSupabase,
-  saveWorkspaceToSupabase
+  savePreferencesToSupabase
 } from "@/lib/supabase/dashboard-store";
+import { loadManifests, saveManifestToSupabase } from "@/lib/supabase/manifest-store";
 import { getConnector } from "@/lib/connectors/registry";
 import type { ConnectorProvider } from "@/lib/connectors/types";
 import { cn, initials } from "@/lib/utils";
-import type { ConnectedApp, WorkspaceSchema } from "@/types/workspace";
+import type { ConnectedApp } from "@/types/workspace";
+import type { IntegrationManifest } from "@/types/manifest";
 
 type DashboardUser = {
   email: string;
   name: string;
 };
 
-const appIcons = {
-  figma: Figma,
-  notion: FileCode2,
-  linear: LayoutDashboard,
-  gmail: UploadCloud,
-  slack: Slack
-};
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error("Request timed out.")), ms))
+  ]);
+}
 
-export function DashboardShell({ settings = false }: { settings?: boolean }) {
+export function DashboardShell({ view = "home" }: { view?: "home" | "settings" }) {
   const router = useRouter();
-  const importInputRef = useRef<HTMLInputElement>(null);
   const [authReady, setAuthReady] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
   const [user, setUser] = useState<DashboardUser | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
-  const [workspaces, setWorkspaces] = useState<WorkspaceSchema[]>(initialWorkspaces);
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState("");
+  const [manifests, setManifests] = useState<IntegrationManifest[]>([]);
+  const [activeManifestId, setActiveManifestId] = useState("");
   const [connectedApps, setConnectedApps] = useState<ConnectedApp[]>(defaultConnectedApps);
   const [preferences, setPreferences] = useState<WorkspacePreferences>(defaultPreferences);
   const [persistenceMode, setPersistenceMode] = useState<"local" | "supabase">("local");
   const [supabaseUserId, setSupabaseUserId] = useState<string | null>(null);
 
-  const activeWorkspace = useMemo(
-    () => workspaces.find((workspace) => workspace.id === activeWorkspaceId) ?? workspaces[0],
-    [activeWorkspaceId, workspaces]
+  const activeManifest = useMemo(
+    () => manifests.find((manifest) => manifest.id === activeManifestId) ?? manifests[0] ?? createBlankManifest(),
+    [activeManifestId, manifests]
   );
 
-  const activeApp = connectedApps.find((app) => app.status === "connected") ?? connectedApps[0];
-
   useEffect(() => {
+    let cancelled = false;
     const supabase = createSupabaseBrowserClient();
 
     async function loadSession() {
+      setAuthError(null);
       let dashboardLoadedFromSupabase = false;
 
       if (!supabase) {
@@ -100,7 +94,18 @@ export function DashboardShell({ settings = false }: { settings?: boolean }) {
         return;
       }
 
-      const { data: { user } } = await supabase.auth.getUser();
+      let user;
+      try {
+        const result = await withTimeout(supabase.auth.getUser(), 8000);
+        user = result.data.user;
+      } catch {
+        if (!cancelled) {
+          setAuthError("Could not reach Supabase. The project may be paused or your connection is down.");
+        }
+        return;
+      }
+
+      if (cancelled) return;
 
       if (!user) {
         router.replace("/login");
@@ -115,12 +120,25 @@ export function DashboardShell({ settings = false }: { settings?: boolean }) {
       });
 
       const dashboardState = await loadDashboardState(supabase, user);
+      const manifestState = await loadManifests(supabase, user);
+
+      if (cancelled) return;
+
+      if (manifestState) {
+        setManifests(manifestState);
+        setActiveManifestId(manifestState[0]?.id ?? "");
+      } else {
+        const storedManifests = readJson<IntegrationManifest[]>(manifestsStorageKey, []);
+        const storedActiveManifest = readJson<string>(activeManifestStorageKey, "");
+        setManifests(storedManifests);
+        setActiveManifestId(
+          storedManifests.some((manifest) => manifest.id === storedActiveManifest) ? storedActiveManifest : storedManifests[0]?.id ?? ""
+        );
+      }
 
       if (dashboardState) {
-        setWorkspaces(dashboardState.workspaces);
         setConnectedApps(dashboardState.connectedApps);
         setPreferences(dashboardState.preferences);
-        setActiveWorkspaceId(dashboardState.workspaces[0]?.id ?? "");
         setPersistenceMode("supabase");
         dashboardLoadedFromSupabase = true;
       }
@@ -130,46 +148,45 @@ export function DashboardShell({ settings = false }: { settings?: boolean }) {
         return;
       }
 
-      const storedWorkspaces = readJson<WorkspaceSchema[]>(workspacesStorageKey, []);
       const storedApps = readJson<ConnectedApp[]>(appsStorageKey, defaultConnectedApps);
       const storedPreferences = readJson<WorkspacePreferences>(preferencesStorageKey, defaultPreferences);
-      const storedActive = readJson<string>(activeWorkspaceStorageKey, "");
 
-      setWorkspaces(storedWorkspaces);
       setConnectedApps(storedApps);
       setPreferences(storedPreferences);
-      setActiveWorkspaceId(storedWorkspaces.some((workspace) => workspace.id === storedActive) ? storedActive : storedWorkspaces[0]?.id ?? "");
       setPersistenceMode("local");
       setAuthReady(true);
     }
 
     loadSession();
-  }, [router]);
+    return () => {
+      cancelled = true;
+    };
+  }, [router, retryKey]);
 
   useEffect(() => {
     if (!authReady) {
       return;
     }
 
-    writeJson(workspacesStorageKey, workspaces);
-    writeJson(activeWorkspaceStorageKey, activeWorkspaceId);
     writeJson(appsStorageKey, connectedApps);
     writeJson(preferencesStorageKey, preferences);
+    writeJson(manifestsStorageKey, manifests);
+    writeJson(activeManifestStorageKey, activeManifestId);
 
     if (persistenceMode === "supabase" && supabaseUserId) {
       const supabase = createSupabaseBrowserClient();
 
       if (supabase) {
         Promise.all([
-          ...workspaces.map((workspace) => saveWorkspaceToSupabase(supabase, supabaseUserId, workspace)),
           ...connectedApps.map((app) => saveConnectedAppToSupabase(supabase, supabaseUserId, app)),
+          ...manifests.map((manifest) => saveManifestToSupabase(supabase, supabaseUserId, manifest)),
           savePreferencesToSupabase(supabase, supabaseUserId, preferences)
         ]).catch(() => {
           setPersistenceMode("local");
         });
       }
     }
-  }, [activeWorkspaceId, authReady, connectedApps, persistenceMode, preferences, supabaseUserId, workspaces]);
+  }, [activeManifestId, authReady, connectedApps, manifests, persistenceMode, preferences, supabaseUserId]);
 
   async function logout() {
     const supabase = createSupabaseBrowserClient();
@@ -182,39 +199,12 @@ export function DashboardShell({ settings = false }: { settings?: boolean }) {
     router.replace("/login");
   }
 
-  function upsertWorkspace(workspace: WorkspaceSchema, activate = true) {
-    setWorkspaces((current) => {
-      const exists = current.some((item) => item.id === workspace.id);
-      return exists ? current.map((item) => (item.id === workspace.id ? workspace : item)) : [workspace, ...current];
+  function upsertManifest(manifest: IntegrationManifest) {
+    setManifests((current) => {
+      const exists = current.some((item) => item.id === manifest.id);
+      return exists ? current.map((item) => (item.id === manifest.id ? manifest : item)) : [manifest, ...current];
     });
-
-    if (activate) {
-      setActiveWorkspaceId(workspace.id);
-    }
-  }
-
-  function createWorkspace() {
-    upsertWorkspace(createBlankWorkspace());
-    setSidebarOpen(false);
-  }
-
-  function deleteWorkspace(workspaceId: string) {
-    setWorkspaces((current) => {
-      const next = current.filter((workspace) => workspace.id !== workspaceId);
-
-      if (workspaceId === activeWorkspaceId) {
-        setActiveWorkspaceId(next[0]?.id ?? "");
-      }
-
-      return next;
-    });
-
-    if (persistenceMode === "supabase" && supabaseUserId) {
-      const supabase = createSupabaseBrowserClient();
-      if (supabase) {
-        deleteWorkspaceFromSupabase(supabase, supabaseUserId, workspaceId).catch(() => setPersistenceMode("local"));
-      }
-    }
+    setActiveManifestId(manifest.id);
   }
 
   async function toggleApp(appId: string) {
@@ -299,68 +289,44 @@ export function DashboardShell({ settings = false }: { settings?: boolean }) {
     return data.session?.access_token ?? null;
   }
 
-  function selectApp(appId: string) {
-    setSelectedAppId(appId);
-    setSidebarOpen(false);
-  }
-
   function updatePreference<K extends keyof WorkspacePreferences>(key: K, value: WorkspacePreferences[K]) {
     setPreferences((current) => ({ ...current, [key]: value }));
   }
 
-  function exportAllWorkspaces() {
-    const blob = new Blob([JSON.stringify({ workspaces, connectedApps, preferences }, null, 2)], {
-      type: "application/json"
-    });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = "dynara-dashboard-export.json";
-    anchor.click();
-    URL.revokeObjectURL(url);
+  const content =
+    view === "settings" ? (
+      <SettingsPageContent
+        connectedApps={connectedApps}
+        preferences={preferences}
+        user={user}
+        onToggleApp={toggleApp}
+        onPreferenceChange={updatePreference}
+      />
+    ) : (
+      <IntegrationBuilder manifest={activeManifest} onUpdateManifest={upsertManifest} />
+    );
+
+  if (authError) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-slate-50 px-4">
+        <div className="w-full max-w-sm rounded-lg border border-border bg-white p-6 text-center shadow-sm">
+          <div className="mx-auto grid h-10 w-10 place-items-center rounded-full bg-red-50 text-red-600">
+            <AlertTriangle className="h-5 w-5" />
+          </div>
+          <p className="mt-4 text-sm font-semibold text-slate-800">{authError}</p>
+          <Button className="mt-4 w-full" variant="dark" onClick={() => setRetryKey((key) => key + 1)}>
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
   }
-
-  async function importWorkspaces(file: File) {
-    const text = await file.text();
-    const payload = JSON.parse(text) as { workspaces?: WorkspaceSchema[] };
-
-    if (Array.isArray(payload.workspaces) && payload.workspaces.length > 0) {
-      setWorkspaces(payload.workspaces);
-      setActiveWorkspaceId(payload.workspaces[0].id);
-    }
-  }
-
-  const content = settings ? (
-    <SettingsPageContent
-      connectedApps={connectedApps}
-      preferences={preferences}
-      user={user}
-      onToggleApp={toggleApp}
-      onPreferenceChange={updatePreference}
-    />
-  ) : (
-    <WorkspaceBuilder
-      activeApp={activeApp}
-      activeWorkspace={activeWorkspace}
-      connectedApps={connectedApps}
-      preferences={preferences}
-      workspaces={workspaces}
-      onCreateWorkspace={createWorkspace}
-      onSelectWorkspace={setActiveWorkspaceId}
-      onUpdateWorkspace={(workspace) => upsertWorkspace(workspace, false)}
-      onUpsertWorkspace={upsertWorkspace}
-      selectedApp={connectedApps.find((app) => app.id === selectedAppId)}
-      onSelectApp={selectApp}
-      onToggleApp={toggleApp}
-      onDeleteWorkspace={deleteWorkspace}
-    />
-  );
 
   if (!authReady || !user) {
     return (
       <div className="grid min-h-screen place-items-center bg-slate-50">
         <div className="flex items-center gap-3 rounded-lg border border-border bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm">
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-200 border-t-slate-950" />
           Loading Dynara...
         </div>
       </div>
@@ -377,17 +343,25 @@ export function DashboardShell({ settings = false }: { settings?: boolean }) {
           )}
         >
           <Sidebar
-            activeWorkspaceId={activeWorkspaceId}
-            connectedApps={connectedApps}
-            workspaces={workspaces}
+            activeManifestId={activeManifest?.id ?? ""}
+            manifests={manifests}
+            view={view}
             onClose={() => setSidebarOpen(false)}
-            onCreateWorkspace={createWorkspace}
-            onSelectWorkspace={(id) => {
-              setActiveWorkspaceId(id);
+            onCreateManifest={() => {
+              upsertManifest(createBlankManifest());
               setSidebarOpen(false);
             }}
-            onDeleteWorkspace={deleteWorkspace}
-            onSelectApp={selectApp}
+            onSelectManifest={(id) => {
+              setActiveManifestId(id);
+              setSidebarOpen(false);
+            }}
+            onDeleteManifest={(id) => {
+              setManifests((current) => {
+                const next = current.filter((manifest) => manifest.id !== id);
+                if (id === activeManifestId) setActiveManifestId(next[0]?.id ?? "");
+                return next;
+              });
+            }}
           />
         </aside>
 
@@ -404,27 +378,12 @@ export function DashboardShell({ settings = false }: { settings?: boolean }) {
             notificationsOpen={notificationsOpen}
             profileOpen={profileOpen}
             user={user}
-            workspaceName={activeWorkspace?.name ?? "No workspace selected"}
-            onCreateWorkspace={createWorkspace}
-            onExport={exportAllWorkspaces}
-            onImportClick={() => importInputRef.current?.click()}
+            workspaceName={activeManifest?.name ?? "New integration"}
+            onCreateWorkspace={() => upsertManifest(createBlankManifest())}
             onLogout={logout}
             onMenu={() => setSidebarOpen(true)}
             onToggleNotifications={() => setNotificationsOpen((open) => !open)}
             onToggleProfile={() => setProfileOpen((open) => !open)}
-          />
-          <input
-            ref={importInputRef}
-            className="hidden"
-            type="file"
-            accept="application/json"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) {
-                importWorkspaces(file);
-              }
-              event.currentTarget.value = "";
-            }}
           />
           <div className="p-4 lg:p-6">{content}</div>
         </main>
@@ -434,23 +393,21 @@ export function DashboardShell({ settings = false }: { settings?: boolean }) {
 }
 
 function Sidebar({
-  activeWorkspaceId,
-  connectedApps,
-  workspaces,
+  activeManifestId,
+  manifests,
+  view,
   onClose,
-  onCreateWorkspace,
-  onDeleteWorkspace,
-  onSelectApp,
-  onSelectWorkspace,
+  onCreateManifest,
+  onDeleteManifest,
+  onSelectManifest,
 }: {
-  activeWorkspaceId: string;
-  connectedApps: ConnectedApp[];
-  workspaces: WorkspaceSchema[];
+  activeManifestId: string;
+  manifests: IntegrationManifest[];
+  view: "home" | "settings";
   onClose: () => void;
-  onCreateWorkspace: () => void;
-  onDeleteWorkspace: (id: string) => void;
-  onSelectApp: (id: string) => void;
-  onSelectWorkspace: (id: string) => void;
+  onCreateManifest: () => void;
+  onDeleteManifest: (id: string) => void;
+  onSelectManifest: (id: string) => void;
 }) {
   return (
     <div className="flex h-full flex-col">
@@ -465,27 +422,28 @@ function Sidebar({
 
       <div className="space-y-6 overflow-y-auto pr-1">
         <nav>
-          <p className="mb-3 text-xs font-bold uppercase tracking-normal text-muted-foreground">Workspaces</p>
+          <p className="mb-3 text-xs font-bold uppercase tracking-normal text-muted-foreground">Integrations</p>
           <div className="space-y-1">
-            {workspaces.map((workspace) => (
+            {manifests.map((manifest) => (
               <div
-                key={workspace.id}
+                key={manifest.id}
                 className={cn(
                   "group flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-muted",
-                  workspace.id === activeWorkspaceId && "bg-primary/10 text-slate-950 ring-1 ring-primary/15"
+                  view === "home" && manifest.id === activeManifestId && "bg-slate-100 text-slate-950 ring-1 ring-slate-200"
                 )}
               >
-                <button
-                  onClick={() => onSelectWorkspace(workspace.id)}
+                <Link
+                  href="/dashboard"
+                  onClick={() => onSelectManifest(manifest.id)}
                   className="flex min-w-0 flex-1 items-center gap-3 text-left"
                 >
-                  <LayoutDashboard className="h-4 w-4 shrink-0 text-primary" />
-                  <span className="min-w-0 flex-1 truncate">{workspace.name}</span>
-                </button>
-                {workspace.id === activeWorkspaceId ? <span className="h-2 w-2 rounded-full bg-emerald-500" /> : null}
+                  <LayoutDashboard className="h-4 w-4 shrink-0 text-slate-500" />
+                  <span className="min-w-0 flex-1 truncate">{manifest.name}</span>
+                </Link>
+                {view === "home" && manifest.id === activeManifestId ? <span className="h-2 w-2 rounded-full bg-emerald-500" /> : null}
                 <button
-                  aria-label={`Delete ${workspace.name}`}
-                  onClick={() => onDeleteWorkspace(workspace.id)}
+                  aria-label={`Delete ${manifest.name}`}
+                  onClick={() => onDeleteManifest(manifest.id)}
                   className="rounded-md p-1 text-slate-400 opacity-0 transition hover:bg-red-50 hover:text-red-600 group-hover:opacity-100"
                 >
                   <X className="h-4 w-4" />
@@ -493,39 +451,17 @@ function Sidebar({
               </div>
             ))}
             <button
-              onClick={onCreateWorkspace}
+              onClick={onCreateManifest}
               className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm font-semibold text-muted-foreground hover:bg-muted"
             >
               <Plus className="h-4 w-4" />
-              New Workspace
+              New Integration
             </button>
           </div>
         </nav>
-
-        <nav>
-          <p className="mb-3 text-xs font-bold uppercase tracking-normal text-muted-foreground">Connected Apps</p>
-          <div className="space-y-1">
-            {connectedApps.map((app) => {
-              const Icon = appIcons[app.id as keyof typeof appIcons] ?? LayoutDashboard;
-              const connected = app.status === "connected";
-              return (
-                <button
-                  key={app.id}
-                  onClick={() => onSelectApp(app.id)}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-slate-700 hover:bg-muted"
-                >
-                  <Icon className="h-4 w-4 text-slate-500" />
-                  <span className="flex-1">{app.name}</span>
-                  <span className={cn("h-2 w-2 rounded-full", connected ? "bg-emerald-500" : "bg-slate-300")} />
-                </button>
-              );
-            })}
-          </div>
-        </nav>
-
       </div>
 
-      <div className="mt-auto flex items-center justify-between border-t border-border pt-4">
+      <div className="mt-auto space-y-1 border-t border-border pt-4">
         <Link href="/dashboard/settings" className="flex items-center gap-2 text-sm font-semibold text-slate-700">
           <Settings className="h-4 w-4" />
           Settings
@@ -541,8 +477,6 @@ function TopBar({
   user,
   workspaceName,
   onCreateWorkspace,
-  onExport,
-  onImportClick,
   onLogout,
   onMenu,
   onToggleNotifications,
@@ -553,8 +487,6 @@ function TopBar({
   user: DashboardUser;
   workspaceName: string;
   onCreateWorkspace: () => void;
-  onExport: () => void;
-  onImportClick: () => void;
   onLogout: () => void;
   onMenu: () => void;
   onToggleNotifications: () => void;
@@ -574,16 +506,9 @@ function TopBar({
         </div>
 
         <div className="relative ml-auto flex items-center gap-2">
-          <Button size="sm" onClick={onCreateWorkspace}>
+          <Button size="sm" variant="dark" onClick={onCreateWorkspace}>
             <Plus className="h-4 w-4" />
-            New Workspace
-          </Button>
-          <Button variant="secondary" size="sm" className="hidden sm:inline-flex" onClick={onImportClick}>
-            <Import className="h-4 w-4" />
-            Import
-          </Button>
-          <Button variant="secondary" size="sm" className="hidden sm:inline-flex" onClick={onExport}>
-            Export
+            New Integration
           </Button>
           <Button variant="ghost" size="icon" aria-label="Notifications" onClick={onToggleNotifications}>
             <Bell className="h-5 w-5" />
@@ -592,7 +517,7 @@ function TopBar({
             className="flex items-center gap-2 rounded-full border border-border bg-white p-1.5"
             onClick={onToggleProfile}
           >
-            <span className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-slate-900 to-primary text-xs font-bold text-white">
+            <span className="grid h-8 w-8 place-items-center rounded-full bg-slate-950 text-xs font-bold text-white">
               {initials(user.name)}
             </span>
             <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -611,7 +536,7 @@ function TopBar({
           {profileOpen ? (
             <div className="absolute right-0 top-14 w-72 rounded-lg border border-border bg-white p-4 shadow-soft">
               <div className="flex items-center gap-3">
-                <span className="grid h-10 w-10 place-items-center rounded-full bg-primary text-sm font-bold text-white">
+                <span className="grid h-10 w-10 place-items-center rounded-full bg-slate-950 text-sm font-bold text-white">
                   {initials(user.name)}
                 </span>
                 <div className="min-w-0">
@@ -647,7 +572,7 @@ function SettingsPageContent({
   return (
     <div className="mx-auto max-w-6xl space-y-5 rounded-lg border border-border bg-white p-6 shadow-sm">
       <div>
-        <Badge tone="purple">Settings</Badge>
+        <Badge tone="gray">Settings</Badge>
         <h1 className="mt-3 text-3xl font-bold tracking-normal">Workspace preferences</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
           Manage connected apps, account defaults, API keys, and workspace behavior for your Dynara runtime.
@@ -709,7 +634,7 @@ function SettingsPageContent({
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-slate-50 p-4">
         <div className="flex items-center gap-3">
           <div className="grid h-10 w-10 place-items-center rounded-lg bg-white shadow-sm">
-            <Moon className="h-5 w-5 text-primary" />
+            <Moon className="h-5 w-5 text-slate-700" />
           </div>
           <div>
             <p className="text-sm font-bold">Theme</p>

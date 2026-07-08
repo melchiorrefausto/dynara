@@ -1,5 +1,5 @@
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 
 export default function SettingsPage() {
-  return <DashboardShell settings />;
+  return <DashboardShell view="settings" />;
 }

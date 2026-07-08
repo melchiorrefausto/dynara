@@ -155,7 +155,7 @@ export function AuthCard({ mode }: { mode: "login" | "signup" }) {
 
           {message ? <p className="rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">{message}</p> : null}
 
-          <Button className="w-full" size="lg" disabled={loading}>
+          <Button className="w-full" size="lg" variant="dark" disabled={loading}>
             {loading ? "Working..." : mode === "login" ? "Sign in" : "Create account"}
             <ArrowRight className="h-4 w-4" />
           </Button>
@@ -163,7 +163,7 @@ export function AuthCard({ mode }: { mode: "login" | "signup" }) {
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
           {mode === "login" ? "New to Dynara?" : "Already have an account?"}{" "}
-          <Link className="font-semibold text-primary" href={mode === "login" ? "/signup" : "/login"}>
+          <Link className="font-semibold text-teal-600" href={mode === "login" ? "/signup" : "/login"}>
             {mode === "login" ? "Create an account" : "Sign in"}
           </Link>
         </p>

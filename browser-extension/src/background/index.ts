@@ -134,4 +134,40 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     sendToTab(tabId, { type: "RESET_SURFACE_STYLE", panelId }, { ok: false }, sendResponse);
     return true;
   }
+
+  if (msg.type === "SET_CONTENT_EDIT_MODE_IN_TAB") {
+    const { tabId, enabled } = msg as { tabId: number; enabled: boolean };
+    sendToTab(tabId, { type: "SET_CONTENT_EDIT_MODE", enabled }, { contentEditMode: false, blocks: [] }, sendResponse);
+    return true;
+  }
+
+  if (msg.type === "GET_CONTENT_EDIT_STATE_IN_TAB") {
+    const { tabId } = msg as { tabId: number };
+    sendToTab(tabId, { type: "GET_CONTENT_EDIT_STATE" }, { contentEditMode: false, blocks: [] }, sendResponse);
+    return true;
+  }
+
+  if (msg.type === "SCAN_CONTENT_BLOCKS_IN_TAB") {
+    const { tabId } = msg as { tabId: number };
+    sendToTab(tabId, { type: "SCAN_CONTENT_BLOCKS" }, { blocks: [] }, sendResponse);
+    return true;
+  }
+
+  if (msg.type === "UNLOCK_CONTENT_EDIT_IN_TAB") {
+    const { tabId, password } = msg as { tabId: number; password: string };
+    sendToTab(tabId, { type: "UNLOCK_CONTENT_EDIT", password }, { ok: false, contentEditMode: false, blocks: [] }, sendResponse);
+    return true;
+  }
+
+  if (msg.type === "CLEAR_CONTENT_BLOCKS_IN_TAB") {
+    const { tabId } = msg as { tabId: number };
+    sendToTab(tabId, { type: "CLEAR_CONTENT_BLOCKS" }, { ok: false }, sendResponse);
+    return true;
+  }
+
+  if (msg.type === "SUBMIT_CONTENT_EDIT_DRAFT_IN_TAB") {
+    const { tabId, backendUrl } = msg as { tabId: number; backendUrl: string };
+    sendToTab(tabId, { type: "SUBMIT_CONTENT_EDIT_DRAFT", backendUrl }, { ok: false }, sendResponse);
+    return true;
+  }
 });

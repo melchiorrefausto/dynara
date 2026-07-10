@@ -16,6 +16,8 @@ type ManifestRow = {
   design_system?: IntegrationManifest["designSystem"] | null;
   constraints?: IntegrationManifest["constraints"] | null;
   profiles?: IntegrationManifest["profiles"] | null;
+  content_blocks?: IntegrationManifest["contentBlocks"] | null;
+  edit_key_hash?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -35,6 +37,8 @@ function fromRow(row: ManifestRow): IntegrationManifest {
     designSystem: row.design_system ?? undefined,
     constraints: row.constraints ?? undefined,
     profiles: row.profiles ?? undefined,
+    contentBlocks: row.content_blocks ?? undefined,
+    editKeyHash: row.edit_key_hash ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   });
@@ -43,7 +47,7 @@ function fromRow(row: ManifestRow): IntegrationManifest {
 export async function loadManifests(supabase: SupabaseClient, _user: User): Promise<IntegrationManifest[] | null> {
   const { data, error } = await supabase
     .from("manifests")
-    .select("id,slug,name,color,app_id,version,panels,surfaces,views,actions,design_system,constraints,profiles,created_at,updated_at")
+    .select("id,slug,name,color,app_id,version,panels,surfaces,views,actions,design_system,constraints,profiles,content_blocks,edit_key_hash,created_at,updated_at")
     .order("updated_at", { ascending: false })
     .returns<ManifestRow[]>();
 
@@ -69,7 +73,9 @@ export async function saveManifestToSupabase(supabase: SupabaseClient, userId: s
     actions: manifest.actions,
     design_system: manifest.designSystem,
     constraints: manifest.constraints,
-    profiles: manifest.profiles
+    profiles: manifest.profiles,
+    content_blocks: manifest.contentBlocks,
+    edit_key_hash: manifest.editKeyHash ?? null
   });
 }
 

@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { Check, Copy, Download, ExternalLink, FileJson, Plus, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
+import { Check, Copy, Download, ExternalLink, Eye, EyeOff, FileJson, Image as ImageIcon, Plus, ShieldCheck, Sparkles, Trash2, Type } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,22 +16,32 @@ import {
   removeAction,
   removePanel,
   removeView,
+  setEditKeyHash,
+  sha256Hex,
   slugify
 } from "@/lib/dashboard/manifest-state";
 import { cn } from "@/lib/utils";
+import type { ContentEditDraft } from "@/lib/supabase/content-edit-drafts";
 import type { IntegrationManifest } from "@/types/manifest";
 
 const COLOR_SWATCHES = ["#0f172a", "#2563eb", "#0d9488", "#16a34a", "#f59e0b", "#dc2626", "#7c3aed"];
 const PRIVATE_SCAN_COMMAND = "npx dynara scan ./your-app --out public/.well-known/dynara.json";
 const SDK_INSTALL_SNIPPET = `<script src="https://dynara.io/sdk/v1.js"></script>`;
+const EDIT_PASSWORD_STORAGE_PREFIX = "dynara-edit-password";
 
 type ImportStatus = "idle" | "loading" | "done" | "error";
 
 export function IntegrationBuilder({
+  contentEditDrafts = [],
   manifest,
+  onPublishContentEditDraft,
+  onRejectContentEditDraft,
   onUpdateManifest
 }: {
+  contentEditDrafts?: ContentEditDraft[];
   manifest: IntegrationManifest;
+  onPublishContentEditDraft?: (draft: ContentEditDraft) => void;
+  onRejectContentEditDraft?: (draft: ContentEditDraft) => void;
   onUpdateManifest: (manifest: IntegrationManifest) => void;
 }) {
   const [panelDraft, setPanelDraft] = useState({ label: "", selector: "" });
@@ -40,11 +50,35 @@ export function IntegrationBuilder({
   const [importStatus, setImportStatus] = useState<ImportStatus>("idle");
   const [importedManifestName, setImportedManifestName] = useState("");
   const [copiedPrivateCommand, setCopiedPrivateCommand] = useState(false);
+  const [editPasswordDraft, setEditPasswordDraft] = useState("");
+  const [activeEditPassword, setActiveEditPassword] = useState<string | null>(null);
+  const [copiedEditPassword, setCopiedEditPassword] = useState(false);
+  const [showEditPassword, setShowEditPassword] = useState(false);
   const manifestFileInputRef = useRef<HTMLInputElement>(null);
   const colorInputRef = useRef<HTMLInputElement>(null);
 
   const dynaraJson = useMemo(() => generateDynaraJson(manifest), [manifest]);
   const isEmpty = manifest.panels.length === 0;
+  const editPasswordStorageKey = `${EDIT_PASSWORD_STORAGE_PREFIX}:${manifest.id}`;
+
+  useEffect(() => {
+    if (!manifest.editKeyHash) {
+      setActiveEditPassword(null);
+      return;
+    }
+
+    try {
+      const raw = window.localStorage.getItem(editPasswordStorageKey);
+      if (!raw) {
+        setActiveEditPassword(null);
+        return;
+      }
+      const saved = JSON.parse(raw) as { hash?: string; password?: string };
+      setActiveEditPassword(saved.hash === manifest.editKeyHash ? saved.password ?? null : null);
+    } catch {
+      setActiveEditPassword(null);
+    }
+  }, [editPasswordStorageKey, manifest.editKeyHash]);
 
   async function importManifestFile(file: File) {
     setImportStatus("loading");
@@ -63,6 +97,37 @@ export function IntegrationBuilder({
     await navigator.clipboard.writeText(PRIVATE_SCAN_COMMAND);
     setCopiedPrivateCommand(true);
     window.setTimeout(() => setCopiedPrivateCommand(false), 1600);
+  }
+
+  async function saveEditPassword() {
+    const password = editPasswordDraft.trim();
+    if (!password) return;
+    const hash = await sha256Hex(password);
+    onUpdateManifest(setEditKeyHash(manifest, hash));
+    setActiveEditPassword(password);
+    try {
+      window.localStorage.setItem(editPasswordStorageKey, JSON.stringify({ hash, password }));
+    } catch {
+      // If localStorage is unavailable, the hash is still saved in the manifest.
+    }
+    setEditPasswordDraft("");
+  }
+
+  function clearEditPassword() {
+    onUpdateManifest(setEditKeyHash(manifest, undefined));
+    setActiveEditPassword(null);
+    try {
+      window.localStorage.removeItem(editPasswordStorageKey);
+    } catch {
+      // ignore
+    }
+  }
+
+  async function copyEditPassword() {
+    if (!activeEditPassword) return;
+    await navigator.clipboard.writeText(activeEditPassword);
+    setCopiedEditPassword(true);
+    window.setTimeout(() => setCopiedEditPassword(false), 1600);
   }
 
   function downloadDynaraJson() {
@@ -437,6 +502,154 @@ export function IntegrationBuilder({
             ))}
           </div>
         </div>
+      </div>
+
+      <div className="rounded-lg border border-border bg-white p-5 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Type className="h-4 w-4 text-slate-700" />
+            <h2 className="text-sm font-bold uppercase tracking-normal text-slate-800">Content blocks</h2>
+            <Badge tone="purple">Dynara Edit</Badge>
+          </div>
+          <span className="text-xs font-semibold text-muted-foreground">{manifest.contentBlocks.length} synced</span>
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Text and images edited from the extension&apos;s <strong>Edit</strong> tab — a lighter, no-manifest-required
+          companion to panel customization. Editors submit changes as drafts, and owners publish approved blocks from
+          this dashboard.
+        </p>
+
+        <div className="mt-4 rounded-lg bg-slate-50 p-3.5">
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Dedicated edit link</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            Set a password to gate Edit mode. Anyone who opens your site with{" "}
+            <code className="rounded bg-white px-1 py-0.5">?dynaraEditKey=&lt;password&gt;</code> in the URL unlocks
+            it automatically — no login, no extra install steps beyond the extension.
+          </p>
+
+          {manifest.editKeyHash ? (
+            <div className="mt-3 flex items-center justify-between gap-2">
+              <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
+                <Check className="h-3.5 w-3.5" />
+                Password set
+              </span>
+              <button
+                onClick={clearEditPassword}
+                className="text-xs font-semibold text-red-600 hover:underline"
+              >
+                Remove password
+              </button>
+            </div>
+          ) : (
+            <p className="mt-3 text-xs font-semibold text-slate-500">No password set — Edit mode is open to anyone with the extension.</p>
+          )}
+
+          <div className="mt-3 flex gap-2">
+            <Input
+              type="password"
+              value={editPasswordDraft}
+              onChange={(event) => setEditPasswordDraft(event.target.value)}
+              placeholder={manifest.editKeyHash ? "New password" : "Set an edit password"}
+              className="flex-1"
+              onKeyDown={(event) => event.key === "Enter" && saveEditPassword()}
+            />
+            <Button size="sm" onClick={saveEditPassword} disabled={!editPasswordDraft.trim()}>
+              Save
+            </Button>
+          </div>
+
+          {activeEditPassword ? (
+            <div className="mt-3 flex items-center gap-2 rounded-lg border border-border bg-white p-2.5">
+              <input
+                readOnly
+                type={showEditPassword ? "text" : "password"}
+                value={activeEditPassword}
+                aria-label="Current edit password"
+                className="min-w-0 flex-1 truncate bg-transparent text-xs font-semibold text-slate-700 outline-none"
+              />
+              <Button
+                size="sm"
+                variant="secondary"
+                type="button"
+                aria-label={showEditPassword ? "Hide password" : "Show password"}
+                onClick={() => setShowEditPassword((visible) => !visible)}
+              >
+                {showEditPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+              </Button>
+              <Button size="sm" variant="secondary" onClick={copyEditPassword}>
+                {copiedEditPassword ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                {copiedEditPassword ? "Copied" : "Copy"}
+              </Button>
+            </div>
+          ) : null}
+        </div>
+
+        {contentEditDrafts.length > 0 ? (
+          <div className="mt-4 space-y-2">
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-600">
+              Pending review ({contentEditDrafts.length})
+            </p>
+            {contentEditDrafts.map((draft) => (
+              <div key={draft.id} className="rounded-lg border border-violet-100 bg-violet-50/60 p-3">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-bold text-slate-800">{draft.pagePath}</p>
+                    <p className="mt-1 truncate text-xs text-muted-foreground">
+                      {draft.blocks.length} edit{draft.blocks.length === 1 ? "" : "s"} submitted{" "}
+                      {new Date(draft.submittedAt).toLocaleString([], {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit"
+                      })}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    <Button size="sm" variant="secondary" onClick={() => onRejectContentEditDraft?.(draft)}>
+                      Reject
+                    </Button>
+                    <Button size="sm" onClick={() => onPublishContentEditDraft?.(draft)}>
+                      Publish
+                    </Button>
+                  </div>
+                </div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {draft.blocks.slice(0, 4).map((block) => (
+                    <div key={block.id} className="flex items-start gap-2 rounded bg-white p-2">
+                      {block.type === "image" ? (
+                        <ImageIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                      ) : (
+                        <Type className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                      )}
+                      <p className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-700">
+                        {block.value || block.key}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {manifest.contentBlocks.length === 0 ? (
+          <p className="mt-4 rounded-lg bg-slate-50 p-3 text-xs text-muted-foreground">
+            No content blocks synced yet.
+          </p>
+        ) : (
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            {manifest.contentBlocks.map((block) => (
+              <div key={block.id} className="flex items-start gap-2 rounded-lg bg-slate-50 p-2.5">
+                {block.type === "image" ? (
+                  <ImageIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                ) : (
+                  <Type className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                )}
+                <p className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-700">{block.value || block.key}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

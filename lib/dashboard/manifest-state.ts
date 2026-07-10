@@ -1,4 +1,5 @@
 import type {
+  ContentBlock,
   IntegrationManifest,
   ManifestAction,
   ManifestConstraint,
@@ -55,6 +56,7 @@ export function createBlankManifest(name = "My App"): IntegrationManifest {
     designSystem: emptyDesignSystem,
     constraints: defaultConstraints,
     profiles: [],
+    contentBlocks: [],
     createdAt: now,
     updatedAt: now
   };
@@ -88,6 +90,7 @@ export function normalizeManifest(manifest: Partial<IntegrationManifest>): Integ
     },
     constraints: manifest.constraints?.length ? manifest.constraints : defaultConstraints,
     profiles: manifest.profiles ?? [],
+    contentBlocks: manifest.contentBlocks ?? [],
     createdAt: manifest.createdAt ?? base.createdAt,
     updatedAt: manifest.updatedAt ?? base.updatedAt
   };
@@ -210,6 +213,26 @@ export function addProfile(manifest: IntegrationManifest, profile: UserInterface
   });
 }
 
+export function upsertContentBlocks(manifest: IntegrationManifest, blocks: ContentBlock[]): IntegrationManifest {
+  const byId = new Map(manifest.contentBlocks.map((block) => [block.id, block]));
+  for (const block of blocks) {
+    byId.set(block.id, block);
+  }
+  return touch({ ...manifest, contentBlocks: [...byId.values()] });
+}
+
+export function setEditKeyHash(manifest: IntegrationManifest, hash: string | undefined): IntegrationManifest {
+  return touch({ ...manifest, editKeyHash: hash });
+}
+
+export async function sha256Hex(text: string): Promise<string> {
+  const bytes = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 export function generateDynaraJson(manifest: IntegrationManifest): string {
   return JSON.stringify(
     {
@@ -223,7 +246,9 @@ export function generateDynaraJson(manifest: IntegrationManifest): string {
       actions: manifest.actions,
       designSystem: manifest.designSystem,
       constraints: manifest.constraints,
-      profiles: manifest.profiles
+      profiles: manifest.profiles,
+      contentBlocks: manifest.contentBlocks,
+      editKeyHash: manifest.editKeyHash
     },
     null,
     2
@@ -243,7 +268,9 @@ export function generateScriptSnippet(manifest: IntegrationManifest): string {
       actions: manifest.actions,
       designSystem: manifest.designSystem,
       constraints: manifest.constraints,
-      profiles: manifest.profiles
+      profiles: manifest.profiles,
+      contentBlocks: manifest.contentBlocks,
+      editKeyHash: manifest.editKeyHash
     },
     null,
     2

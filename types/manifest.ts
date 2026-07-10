@@ -57,6 +57,16 @@ export type ManifestDesignSystem = {
   }>;
 };
 
+export type ContentBlock = {
+  id: string;
+  key: string;
+  type: "text" | "image";
+  selector: string;
+  value: string;
+  label?: string;
+  updatedAt?: string;
+};
+
 export type ManifestConstraint = {
   id: string;
   label: string;
@@ -93,6 +103,9 @@ export type IntegrationManifest = {
   designSystem: ManifestDesignSystem;
   constraints: ManifestConstraint[];
   profiles: UserInterfaceProfile[];
+  contentBlocks: ContentBlock[];
+  /** SHA-256 hex hash of the password gating "Edit" mode. Unset = anyone with the extension can edit. */
+  editKeyHash?: string;
   createdAt: string;
   updatedAt: string;
 };

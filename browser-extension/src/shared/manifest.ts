@@ -39,6 +39,16 @@ export type ManifestSurface = {
   description?: string;
 };
 
+export type ContentBlock = {
+  id: string;
+  key: string;
+  type: "text" | "image";
+  selector: string;
+  value: string;
+  label?: string;
+  updatedAt?: string;
+};
+
 export type UserInterfaceProfile = {
   id: string;
   label: string;
@@ -85,6 +95,9 @@ export type DynaraManifest = {
   actions: ManifestAction[];
   designSystem: ManifestDesignSystem;
   profiles: UserInterfaceProfile[];
+  contentBlocks: ContentBlock[];
+  /** SHA-256 hex hash of the password gating "Edit" mode. Unset = anyone with the extension can edit. */
+  editKeyHash?: string;
   /** How the manifest was found — surfaced in the UI so devs can tell what's wired up. */
   source: "sdk" | "well-known" | "auto-discovery" | "none";
 };
@@ -113,6 +126,7 @@ export const DEFAULT_MANIFEST: DynaraManifest = {
     componentRefs: []
   },
   profiles: [],
+  contentBlocks: [],
   source: "none",
 };
 
@@ -147,6 +161,8 @@ export function normalizeManifest(raw: Partial<DynaraManifest> | null | undefine
       componentRefs: Array.isArray(raw?.designSystem?.componentRefs) ? raw!.designSystem!.componentRefs : []
     },
     profiles: Array.isArray(raw?.profiles) ? raw!.profiles! : [],
+    contentBlocks: Array.isArray(raw?.contentBlocks) ? raw!.contentBlocks! : [],
+    editKeyHash: raw?.editKeyHash,
     source,
   };
 }

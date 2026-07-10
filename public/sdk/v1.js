@@ -47,7 +47,9 @@
       actions: (raw && raw.actions) || [],
       designSystem: (raw && raw.designSystem) || { source: "manual", version: "1.0.0", tokens: [], componentRefs: [] },
       constraints: (raw && raw.constraints) || [],
-      profiles: (raw && raw.profiles) || []
+      profiles: (raw && raw.profiles) || [],
+      contentBlocks: (raw && raw.contentBlocks) || [],
+      editKeyHash: raw && raw.editKeyHash
     };
   }
 
@@ -57,10 +59,34 @@
       .catch(function () { return null; });
   }
 
+  function applyContentBlocks(m) {
+    var blocks = (m && m.contentBlocks) || [];
+    blocks.forEach(function (block) {
+      if (!block || !block.selector) return;
+      var el = document.querySelector(block.selector);
+      if (!el) return;
+      if (block.type === "text") {
+        el.textContent = block.value || "";
+      }
+      if (block.type === "image" && el instanceof HTMLImageElement) {
+        el.src = block.value || "";
+      }
+    });
+  }
+
+  function applyContentBlocksWhenReady(m) {
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", function () { applyContentBlocks(m); }, { once: true });
+      return;
+    }
+    applyContentBlocks(m);
+  }
+
   function ensureManifest() {
     if (manifest) return Promise.resolve(manifest);
     return fetchWellKnown().then(function (json) {
       manifest = normalize(json);
+      applyContentBlocksWhenReady(manifest);
       return manifest;
     });
   }
@@ -68,6 +94,7 @@
   window.Dynara = {
     init: function (m) {
       manifest = normalize(m);
+      applyContentBlocksWhenReady(manifest);
     },
     action: function (id, fn) {
       actions[id] = fn;

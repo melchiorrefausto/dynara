@@ -34,7 +34,8 @@ import {
   activeManifestStorageKey,
   createBlankManifest,
   manifestsStorageKey,
-  normalizeManifest
+  normalizeManifest,
+  upsertContentBlocks
 } from "@/lib/dashboard/manifest-state";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
@@ -43,6 +44,11 @@ import {
   savePreferencesToSupabase
 } from "@/lib/supabase/dashboard-store";
 import { deleteManifestFromSupabase, loadManifests, saveManifestToSupabase } from "@/lib/supabase/manifest-store";
+import {
+  loadPendingContentEditDrafts,
+  markContentEditDraftReviewed,
+  type ContentEditDraft
+} from "@/lib/supabase/content-edit-drafts";
 import { getConnector } from "@/lib/connectors/registry";
 import type { ConnectorProvider } from "@/lib/connectors/types";
 import { cn, initials } from "@/lib/utils";
@@ -76,6 +82,7 @@ export function DashboardShell({ view = "home" }: { view?: "home" | "settings" }
   const [activeManifestId, setActiveManifestId] = useState("");
   const [connectedApps, setConnectedApps] = useState<ConnectedApp[]>(defaultConnectedApps);
   const [preferences, setPreferences] = useState<WorkspacePreferences>(defaultPreferences);
+  const [contentEditDrafts, setContentEditDrafts] = useState<ContentEditDraft[]>([]);
   const [persistenceMode, setPersistenceMode] = useState<"local" | "supabase">("local");
   const [supabaseUserId, setSupabaseUserId] = useState<string | null>(null);
 
@@ -124,6 +131,7 @@ export function DashboardShell({ view = "home" }: { view?: "home" | "settings" }
 
       const dashboardState = await loadDashboardState(supabase, user);
       const manifestState = await loadManifests(supabase, user);
+      const draftState = await loadPendingContentEditDrafts(supabase, user.id);
 
       if (cancelled) return;
 
@@ -154,6 +162,10 @@ export function DashboardShell({ view = "home" }: { view?: "home" | "settings" }
         setPreferences(dashboardState.preferences);
         setPersistenceMode("supabase");
         dashboardLoadedFromSupabase = true;
+      }
+
+      if (draftState) {
+        setContentEditDrafts(draftState);
       }
 
       if (dashboardLoadedFromSupabase) {
@@ -225,6 +237,36 @@ export function DashboardShell({ view = "home" }: { view?: "home" | "settings" }
       return exists ? current.map((item) => (item.id === manifest.id ? manifest : item)) : [manifest, ...current];
     });
     setActiveManifestId(manifest.id);
+  }
+
+  async function publishContentEditDraft(draft: ContentEditDraft) {
+    const manifest = manifests.find((item) => item.id === draft.manifestId);
+    if (!manifest) return;
+
+    const nextManifest = upsertContentBlocks(manifest, draft.blocks);
+    upsertManifest(nextManifest);
+    setContentEditDrafts((current) => current.filter((item) => item.id !== draft.id));
+
+    if (persistenceMode === "supabase" && supabaseUserId) {
+      const supabase = createSupabaseBrowserClient();
+      if (supabase) {
+        await Promise.all([
+          saveManifestToSupabase(supabase, supabaseUserId, nextManifest),
+          markContentEditDraftReviewed(supabase, draft.id, "approved")
+        ]).catch(() => setPersistenceMode("local"));
+      }
+    }
+  }
+
+  async function rejectContentEditDraft(draft: ContentEditDraft) {
+    setContentEditDrafts((current) => current.filter((item) => item.id !== draft.id));
+
+    if (persistenceMode === "supabase") {
+      const supabase = createSupabaseBrowserClient();
+      if (supabase) {
+        await markContentEditDraftReviewed(supabase, draft.id, "rejected").catch(() => setPersistenceMode("local"));
+      }
+    }
   }
 
   async function toggleApp(appId: string) {
@@ -325,7 +367,13 @@ export function DashboardShell({ view = "home" }: { view?: "home" | "settings" }
     ) : !activeManifest ? (
       <EmptyProjectsState onCreateProject={() => upsertManifest(createBlankManifest("New Project"))} />
     ) : (
-      <IntegrationBuilder manifest={activeManifest} onUpdateManifest={upsertManifest} />
+      <IntegrationBuilder
+        manifest={activeManifest}
+        contentEditDrafts={contentEditDrafts.filter((draft) => draft.manifestId === activeManifest.id)}
+        onPublishContentEditDraft={publishContentEditDraft}
+        onRejectContentEditDraft={rejectContentEditDraft}
+        onUpdateManifest={upsertManifest}
+      />
     );
 
   if (authError) {

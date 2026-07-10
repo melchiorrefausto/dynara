@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { DEFAULT_MANIFEST, type DynaraManifest, type InterfacePlan, type ManifestPanel, type ManifestView, type UserInterfaceProfile } from "../shared/manifest";
 import { getBackendUrl, setBackendUrl } from "../shared/config";
 import { auditManifestContrast, auditProfileContrast, contrastSummary, failingContrast, type ContrastResult } from "../shared/contrast";
+import { ContentEditTab } from "./ContentEditTab";
 
 type AskState = "idle" | "loading" | "done";
 type PersistedState = {
@@ -117,6 +118,7 @@ function contrastBadge(results: ContrastResult[]) {
 }
 
 export function App() {
+  const [mode, setMode] = useState<"customize" | "edit">("customize");
   const [tabId, setTabId] = useState<number | null>(null);
   const [url, setUrl] = useState("");
   const [manifest, setManifest] = useState<DynaraManifest>(DEFAULT_MANIFEST);
@@ -428,6 +430,50 @@ export function App() {
         )}
       </div>
 
+      <div style={{ padding: "12px 16px 0", flexShrink: 0 }}>
+        <div style={{ display: "flex", gap: 2, padding: 3, borderRadius: 10, background: "#f1f5f9" }}>
+          <button
+            onClick={() => setMode("customize")}
+            style={{
+              flex: 1,
+              padding: "6px 0",
+              borderRadius: 8,
+              border: "none",
+              fontSize: 11.5,
+              fontWeight: 700,
+              cursor: "pointer",
+              transition: "background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease",
+              background: mode === "customize" ? "#fff" : "transparent",
+              color: mode === "customize" ? "#7c3aed" : "#64748b",
+              boxShadow: mode === "customize" ? "0 1px 3px rgba(15,23,42,0.12)" : "none"
+            }}
+          >
+            Customize
+          </button>
+          <button
+            onClick={() => setMode("edit")}
+            style={{
+              flex: 1,
+              padding: "6px 0",
+              borderRadius: 8,
+              border: "none",
+              fontSize: 11.5,
+              fontWeight: 700,
+              cursor: "pointer",
+              transition: "background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease",
+              background: mode === "edit" ? "#fff" : "transparent",
+              color: mode === "edit" ? "#7c3aed" : "#64748b",
+              boxShadow: mode === "edit" ? "0 1px 3px rgba(15,23,42,0.12)" : "none"
+            }}
+          >
+            Edit
+          </button>
+        </div>
+      </div>
+
+      {mode === "edit" ? (
+        <ContentEditTab tabId={tabId} backendUrl={backend} />
+      ) : (
       <div style={{ flex: 1, overflowY: "auto", padding: "0 0 16px" }}>
         {manifest.source !== "none" && (
           <p style={{ fontSize: 10, color: "#94a3b8", padding: "10px 16px 0", margin: 0 }}>
@@ -845,6 +891,7 @@ export function App() {
           </div>
         </section>
       </div>
+      )}
     </div>
   );
 }

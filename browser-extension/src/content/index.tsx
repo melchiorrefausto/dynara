@@ -2,7 +2,7 @@
 // toggles + action triggers in response to messages from the side panel.
 // No React UI here; all UI lives in the native Chrome Side Panel.
 
-import { normalizeManifest, DEFAULT_MANIFEST, type DynaraManifest, type InterfacePlan, type UserInterfaceProfile } from "../shared/manifest";
+import { normalizeManifest, DEFAULT_MANIFEST, type ContentBlock, type DynaraManifest, type InterfacePlan, type UserInterfaceProfile } from "../shared/manifest";
 import { auditManifestContrast, failingContrast } from "../shared/contrast";
 
 const dynaraGlobal = globalThis as typeof globalThis & {
@@ -884,12 +884,44 @@ if (window === window.top && window.location.protocol.startsWith("http") && docu
 
   async function discoverManifest(): Promise<DynaraManifest> {
     const fromPage = await requestManifestFromPage();
-    if (fromPage) return fromPage;
+    if (fromPage?.editKeyHash && manifestMatchesPage(fromPage)) return fromPage;
     const fromWellKnown = await fetchWellKnown();
-    if (fromWellKnown) return fromWellKnown;
+    if (fromPage && fromWellKnown) {
+      const merged = normalizeManifest(
+        {
+          ...fromWellKnown,
+          ...fromPage,
+          contentBlocks: fromPage.contentBlocks.length > 0 ? fromPage.contentBlocks : fromWellKnown.contentBlocks,
+          editKeyHash: fromPage.editKeyHash ?? fromWellKnown.editKeyHash
+        },
+        fromPage.source
+      );
+      if (manifestMatchesPage(merged)) return merged;
+    }
+    if (fromPage && manifestMatchesPage(fromPage)) return fromPage;
+    if (fromWellKnown && manifestMatchesPage(fromWellKnown)) return fromWellKnown;
     const discovered = autoDiscover();
     if (discovered) return discovered;
     return DEFAULT_MANIFEST;
+  }
+
+  function manifestMatchesPage(manifest: DynaraManifest) {
+    const specificSelectors = manifest.panels
+      .map((panel) => panel.selector?.trim())
+      .filter((selector): selector is string => Boolean(selector) && !isGenericDocumentSelector(selector));
+
+    if (specificSelectors.length === 0) return true;
+    return specificSelectors.some((selector) => {
+      try {
+        return Boolean(document.querySelector(selector));
+      } catch {
+        return false;
+      }
+    });
+  }
+
+  function isGenericDocumentSelector(selector: string) {
+    return /^(body|html|main|header|footer|nav|section|article|aside)$/i.test(selector);
   }
 
 	  function getManifest(): Promise<DynaraManifest> {
@@ -904,6 +936,373 @@ if (window === window.top && window.location.protocol.startsWith("http") && docu
 
   // Kick off discovery early so it's usually cached by the time the side panel asks.
   void getManifest().then(applySavedStateIfEnabled);
+
+  // ---- Dynara Edit: click-to-edit text/images, independent of the manifest ----
+  // Works on any page, no dynara.json required — a lighter companion to the
+  // surface-based "Customize" mode above. Edits persist to this browser's
+  // localStorage, scoped per origin+path, and reapply automatically on load.
+
+  let contentEditMode = false;
+  let hoveredContentEl: Element | null = null;
+  let editingContentEl: HTMLElement | null = null;
+  let contentEditPassword: string | null = null;
+
+  const EDITABLE_TEXT_TAGS = new Set(["H1", "H2", "H3", "H4", "H5", "H6", "P", "SPAN", "A", "BUTTON", "LI", "LABEL"]);
+
+  function contentBlocksStorageKey(): string {
+    return `dynara-content-blocks:${location.origin}${location.pathname}`;
+  }
+
+  function loadStoredContentBlocks(): ContentBlock[] {
+    try {
+      const raw = localStorage.getItem(contentBlocksStorageKey());
+      return raw ? (JSON.parse(raw) as ContentBlock[]) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveStoredContentBlocks(blocks: ContentBlock[]) {
+    try {
+      localStorage.setItem(contentBlocksStorageKey(), JSON.stringify(blocks));
+    } catch {
+      // Storage full or unavailable — edits still apply live, just won't persist.
+    }
+  }
+
+  function upsertStoredContentBlock(block: ContentBlock) {
+    const blocks = loadStoredContentBlocks();
+    const index = blocks.findIndex((item) => item.selector === block.selector);
+    if (index >= 0) blocks[index] = block;
+    else blocks.push(block);
+    saveStoredContentBlocks(blocks);
+    chrome.runtime.sendMessage({ type: "CONTENT_BLOCK_SAVED", block });
+  }
+
+  function applyContentBlocks(blocks: ContentBlock[]) {
+    for (const block of blocks) {
+      const el = document.querySelector(block.selector);
+      if (!el) continue;
+      if (block.type === "text") {
+        el.textContent = block.value;
+      } else if (block.type === "image" && el instanceof HTMLImageElement) {
+        el.src = block.value;
+      }
+    }
+  }
+
+  function applyStoredContentBlocks() {
+    applyContentBlocks(loadStoredContentBlocks());
+  }
+
+  function applyPublishedContentBlocks(manifest: DynaraManifest) {
+    applyContentBlocks(manifest.contentBlocks);
+  }
+
+  function getSelectorForElement(el: Element): string {
+    if (el.id) return `#${CSS.escape(el.id)}`;
+    const path: string[] = [];
+    let node: Element | null = el;
+    while (node && node.nodeType === 1 && node !== document.body) {
+      let selector = node.tagName.toLowerCase();
+      const parent: Element | null = node.parentElement;
+      if (parent) {
+        const siblings = Array.from(parent.children).filter((sibling) => sibling.tagName === node!.tagName);
+        if (siblings.length > 1) {
+          selector += `:nth-of-type(${siblings.indexOf(node) + 1})`;
+        }
+      }
+      path.unshift(selector);
+      node = parent;
+    }
+    return path.length ? `body > ${path.join(" > ")}` : el.tagName.toLowerCase();
+  }
+
+  function isDirectTextElement(el: Element): boolean {
+    if (!EDITABLE_TEXT_TAGS.has(el.tagName)) return false;
+    const text = (el.textContent || "").trim();
+    if (!text || text.length > 300) return false;
+    return Array.from(el.childNodes).some(
+      (node) => node.nodeType === Node.TEXT_NODE && (node.textContent || "").trim().length > 0
+    );
+  }
+
+  function scanContentBlocks(): ContentBlock[] {
+    const found: ContentBlock[] = [];
+    const seen = new Set<string>();
+    const stored = new Map(loadStoredContentBlocks().map((block) => [block.selector, block]));
+
+    document.querySelectorAll("body *").forEach((el) => {
+      if (found.length >= 60) return;
+      if (el.closest("#dynara-content-edit-styles, script, style, noscript")) return;
+
+      if (el.tagName === "IMG") {
+        const img = el as HTMLImageElement;
+        if (!img.src || img.naturalWidth < 32 || img.naturalHeight < 32) return;
+        const selector = getSelectorForElement(el);
+        if (seen.has(selector)) return;
+        seen.add(selector);
+        const existing = stored.get(selector);
+        found.push(
+          existing ?? {
+            id: selector,
+            key: img.alt || selector,
+            type: "image",
+            selector,
+            value: img.src,
+            label: img.alt || "Image"
+          }
+        );
+        return;
+      }
+
+      if (isDirectTextElement(el)) {
+        const selector = getSelectorForElement(el);
+        if (seen.has(selector)) return;
+        seen.add(selector);
+        const existing = stored.get(selector);
+        const value = (el.textContent || "").trim();
+        found.push(
+          existing ?? {
+            id: selector,
+            key: value.slice(0, 40),
+            type: "text",
+            selector,
+            value,
+            label: el.tagName.toLowerCase()
+          }
+        );
+      }
+    });
+
+    return found;
+  }
+
+  function resolveContentTarget(el: Element | null): Element | null {
+    if (!el) return null;
+    if (el.tagName === "IMG") return el;
+    let node: Element | null = el;
+    let depth = 0;
+    while (node && depth < 4) {
+      if (isDirectTextElement(node)) return node;
+      node = node.parentElement;
+      depth++;
+    }
+    return null;
+  }
+
+  function ensureContentEditStyles() {
+    if (document.getElementById("dynara-content-edit-styles")) return;
+    const style = document.createElement("style");
+    style.id = "dynara-content-edit-styles";
+    style.textContent =
+      ".dynara-content-hover { outline: 2px dashed #7c3aed !important; outline-offset: 2px !important; cursor: text !important; background: rgba(124,58,237,0.06) !important; }" +
+      ".dynara-content-editing { outline: 2px solid #7c3aed !important; background: rgba(124,58,237,0.12) !important; cursor: text !important; }";
+    document.head.appendChild(style);
+  }
+
+  function onContentHoverMove(event: MouseEvent) {
+    if (!contentEditMode) return;
+    const target = resolveContentTarget(event.target as Element | null);
+    if (target === hoveredContentEl) return;
+    hoveredContentEl?.classList.remove("dynara-content-hover");
+    hoveredContentEl = target;
+    hoveredContentEl?.classList.add("dynara-content-hover");
+  }
+
+  function onContentClick(event: MouseEvent) {
+    if (!contentEditMode) return;
+    const target = resolveContentTarget(event.target as Element | null);
+    if (!target) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (target.tagName === "IMG") {
+      promptImageReplace(target as HTMLImageElement);
+      return;
+    }
+
+    startInlineTextEdit(target as HTMLElement);
+  }
+
+  function startInlineTextEdit(el: HTMLElement) {
+    if (editingContentEl === el) return;
+    finishInlineTextEdit();
+    editingContentEl = el;
+    el.classList.add("dynara-content-editing");
+    el.setAttribute("contenteditable", "true");
+    el.focus();
+    el.addEventListener("blur", finishInlineTextEdit, { once: true });
+  }
+
+  function finishInlineTextEdit() {
+    const el = editingContentEl;
+    if (!el) return;
+    el.removeAttribute("contenteditable");
+    el.classList.remove("dynara-content-editing");
+    editingContentEl = null;
+
+    const selector = getSelectorForElement(el);
+    const value = (el.textContent || "").trim();
+    upsertStoredContentBlock({
+      id: selector,
+      key: value.slice(0, 40) || selector,
+      type: "text",
+      selector,
+      value,
+      updatedAt: new Date().toISOString()
+    });
+  }
+
+  function promptImageReplace(img: HTMLImageElement) {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.style.display = "none";
+    document.body.appendChild(input);
+    input.addEventListener("change", () => {
+      const file = input.files?.[0];
+      document.body.removeChild(input);
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        img.src = dataUrl;
+        const selector = getSelectorForElement(img);
+        upsertStoredContentBlock({
+          id: selector,
+          key: img.alt || selector,
+          type: "image",
+          selector,
+          value: dataUrl,
+          label: img.alt || "Image",
+          updatedAt: new Date().toISOString()
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+    input.click();
+  }
+
+  let contentEditUnlocked = false;
+
+  function contentEditUnlockStorageKey(): string {
+    return `dynara-content-edit-unlocked:${location.origin}${location.pathname}`;
+  }
+
+  function contentEditPasswordStorageKey(): string {
+    return `dynara-content-edit-password:${location.origin}${location.pathname}`;
+  }
+
+  async function sha256Hex(text: string): Promise<string> {
+    const bytes = new TextEncoder().encode(text);
+    const digest = await crypto.subtle.digest("SHA-256", bytes);
+    return Array.from(new Uint8Array(digest))
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
+  }
+
+  function isContentEditUnlocked(): boolean {
+    if (contentEditUnlocked) return true;
+    try {
+      if (sessionStorage.getItem(contentEditUnlockStorageKey()) === "1") {
+        contentEditUnlocked = true;
+        contentEditPassword = sessionStorage.getItem(contentEditPasswordStorageKey());
+        return true;
+      }
+    } catch {
+      // sessionStorage unavailable — treat as locked
+    }
+    return false;
+  }
+
+  async function tryUnlockContentEdit(password: string): Promise<boolean> {
+    const manifest = await getManifest();
+    if (!manifest.editKeyHash) return false;
+    const hash = await sha256Hex(password);
+    if (hash !== manifest.editKeyHash) return false;
+    contentEditUnlocked = true;
+    contentEditPassword = password;
+    try {
+      sessionStorage.setItem(contentEditUnlockStorageKey(), "1");
+      sessionStorage.setItem(contentEditPasswordStorageKey(), password);
+    } catch {
+      // ignore
+    }
+    return true;
+  }
+
+  async function submitContentEditDraft(backendUrl: string) {
+    const manifest = await getManifest();
+    const blocks = loadStoredContentBlocks();
+    const password = contentEditPassword;
+    if (!manifest.editKeyHash || !password || !isContentEditUnlocked()) {
+      return { ok: false, error: "Unlock Edit mode before submitting." };
+    }
+    if (blocks.length === 0) {
+      return { ok: false, error: "There are no saved edits to submit." };
+    }
+
+    const base = backendUrl.replace(/\/$/, "");
+    const response = await fetch(`${base}/api/content-edit-drafts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        appId: manifest.appId || manifest.name,
+        password,
+        pageUrl: location.href,
+        pagePath: location.pathname,
+        blocks
+      })
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return { ok: false, error: payload.error ?? "Could not submit edits." };
+    }
+    return { ok: true, draftId: payload.draftId as string | undefined };
+  }
+
+  function setContentEditMode(enabled: boolean) {
+    contentEditMode = enabled;
+    ensureContentEditStyles();
+    if (enabled) {
+      document.addEventListener("mousemove", onContentHoverMove, true);
+      document.addEventListener("click", onContentClick, true);
+    } else {
+      document.removeEventListener("mousemove", onContentHoverMove, true);
+      document.removeEventListener("click", onContentClick, true);
+      hoveredContentEl?.classList.remove("dynara-content-hover");
+      hoveredContentEl = null;
+      finishInlineTextEdit();
+    }
+    console.info("[Dynara content] content edit mode", { enabled });
+  }
+
+  async function getContentEditState() {
+    const manifest = await getManifest();
+    const available = Boolean(manifest.editKeyHash);
+    return {
+      contentEditMode,
+      blocks: loadStoredContentBlocks(),
+      available,
+      requiresPassword: available && !isContentEditUnlocked()
+    };
+  }
+
+  void getManifest().then((manifest) => {
+    applyPublishedContentBlocks(manifest);
+    applyStoredContentBlocks();
+  });
+
+  // Dedicated link: ?dynaraEditKey=<password> auto-unlocks Edit mode, no
+  // manual password entry needed — this is what gets sent to a client.
+  const dynaraEditKeyParam = new URLSearchParams(location.search).get("dynaraEditKey");
+  if (dynaraEditKeyParam) {
+    void tryUnlockContentEdit(dynaraEditKeyParam).then((ok) => {
+      console.info("[Dynara content] link-based unlock", { ok });
+    });
+  }
 
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     console.info("[Dynara content] received message", msg);
@@ -1016,6 +1415,57 @@ if (window === window.top && window.location.protocol.startsWith("http") && docu
 	      resetSurfaceStyle(panelId);
 	      sendResponse({ ok: true, ...getWysiwygState() });
 	      return;
+	    }
+
+	    if (msg.type === "SET_CONTENT_EDIT_MODE") {
+	      const { enabled } = msg as { enabled: boolean };
+	      if (!enabled) {
+	        setContentEditMode(false);
+	        getContentEditState().then(sendResponse);
+	        return true;
+	      }
+	      getContentEditState().then((state) => {
+	        if (!state.available || state.requiresPassword) {
+	          sendResponse(state);
+	          return;
+	        }
+	        setContentEditMode(true);
+	        getContentEditState().then(sendResponse);
+	      });
+	      return true;
+	    }
+
+	    if (msg.type === "UNLOCK_CONTENT_EDIT") {
+	      const { password } = msg as { password: string };
+	      tryUnlockContentEdit(password).then((ok) => {
+	        if (ok) setContentEditMode(true);
+	        getContentEditState().then((state) => sendResponse({ ok, ...state }));
+	      });
+	      return true;
+	    }
+
+	    if (msg.type === "GET_CONTENT_EDIT_STATE") {
+	      getContentEditState().then(sendResponse);
+	      return true;
+	    }
+
+	    if (msg.type === "SCAN_CONTENT_BLOCKS") {
+	      sendResponse({ blocks: scanContentBlocks() });
+	      return;
+	    }
+
+	    if (msg.type === "CLEAR_CONTENT_BLOCKS") {
+	      saveStoredContentBlocks([]);
+	      getContentEditState().then((state) => sendResponse({ ok: true, ...state }));
+	      return true;
+	    }
+
+	    if (msg.type === "SUBMIT_CONTENT_EDIT_DRAFT") {
+	      const { backendUrl } = msg as { backendUrl: string };
+	      submitContentEditDraft(backendUrl).then(sendResponse).catch((error: Error) => {
+	        sendResponse({ ok: false, error: error.message });
+	      });
+	      return true;
 	    }
 	  });
 	}

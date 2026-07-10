@@ -72,7 +72,7 @@ export function AuthCard({ mode }: { mode: "login" | "signup" }) {
             <DynaraLogo />
           </Link>
 
-          <div className="grid h-12 w-12 place-items-center rounded-lg bg-emerald-50 text-emerald-600">
+          <div className="grid h-12 w-12 place-items-center rounded-lg bg-gradient-to-br from-primary via-fuchsia-500 to-cyan-400 text-white shadow-sm">
             <CheckCircle2 className="h-6 w-6" />
           </div>
           <h1 className="mt-6 text-2xl font-bold tracking-normal">Check your email</h1>
@@ -163,7 +163,10 @@ export function AuthCard({ mode }: { mode: "login" | "signup" }) {
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
           {mode === "login" ? "New to Dynara?" : "Already have an account?"}{" "}
-          <Link className="font-semibold text-teal-600" href={mode === "login" ? "/signup" : "/login"}>
+          <Link
+            className="bg-gradient-to-r from-primary via-fuchsia-500 to-cyan-500 bg-clip-text font-semibold text-transparent"
+            href={mode === "login" ? "/signup" : "/login"}
+          >
             {mode === "login" ? "Create an account" : "Sign in"}
           </Link>
         </p>

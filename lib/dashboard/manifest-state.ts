@@ -1,4 +1,13 @@
-import type { IntegrationManifest, ManifestAction, ManifestPanel, ManifestView } from "@/types/manifest";
+import type {
+  IntegrationManifest,
+  ManifestAction,
+  ManifestConstraint,
+  ManifestDesignSystem,
+  ManifestPanel,
+  ManifestSurface,
+  ManifestView,
+  UserInterfaceProfile
+} from "@/types/manifest";
 
 export const manifestsStorageKey = "dynara-manifests-v1";
 export const activeManifestStorageKey = "dynara-active-manifest-v1";
@@ -7,16 +16,45 @@ export function slugify(name: string) {
   return name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "my-app";
 }
 
+const emptyDesignSystem: ManifestDesignSystem = {
+  source: "manual",
+  version: "1.0.0",
+  tokens: [],
+  componentRefs: []
+};
+
+const defaultConstraints: ManifestConstraint[] = [
+  {
+    id: "keep-required-surfaces",
+    label: "Keep required surfaces visible",
+    description: "Surfaces marked as required cannot be hidden by generated profiles.",
+    severity: "blocking"
+  },
+  {
+    id: "respect-native-permissions",
+    label: "Respect app permissions",
+    description: "Dynara actions must only execute capabilities the current user can already perform in the host app.",
+    severity: "blocking"
+  }
+];
+
 export function createBlankManifest(name = "My App"): IntegrationManifest {
   const now = new Date().toISOString();
+  const slug = slugify(name);
   return {
     id: `manifest-${Date.now()}`,
-    slug: slugify(name),
+    slug,
     name,
     color: "#7c3aed",
+    appId: slug,
     panels: [],
+    surfaces: [],
     views: [],
     actions: [],
+    version: "1.0.0",
+    designSystem: emptyDesignSystem,
+    constraints: defaultConstraints,
+    profiles: [],
     createdAt: now,
     updatedAt: now
   };
@@ -26,14 +64,67 @@ function touch(manifest: IntegrationManifest): IntegrationManifest {
   return { ...manifest, updatedAt: new Date().toISOString() };
 }
 
+export function normalizeManifest(manifest: Partial<IntegrationManifest>): IntegrationManifest {
+  const base = createBlankManifest(manifest.name ?? "My App");
+  const panels = manifest.panels ?? [];
+  const surfaces = manifest.surfaces?.length
+    ? manifest.surfaces
+    : panels.map(panelFromLegacyPanel);
+
+  return {
+    ...base,
+    ...manifest,
+    appId: manifest.appId ?? manifest.slug ?? base.appId,
+    version: manifest.version ?? "1.0.0",
+    panels,
+    surfaces,
+    views: manifest.views ?? [],
+    actions: manifest.actions ?? [],
+    designSystem: {
+      ...emptyDesignSystem,
+      ...(manifest.designSystem ?? {}),
+      tokens: manifest.designSystem?.tokens ?? [],
+      componentRefs: manifest.designSystem?.componentRefs ?? []
+    },
+    constraints: manifest.constraints?.length ? manifest.constraints : defaultConstraints,
+    profiles: manifest.profiles ?? [],
+    createdAt: manifest.createdAt ?? base.createdAt,
+    updatedAt: manifest.updatedAt ?? base.updatedAt
+  };
+}
+
+function panelFromLegacyPanel(panel: ManifestPanel): ManifestSurface {
+  return {
+    id: panel.id,
+    label: panel.label,
+    type: "panel",
+    selector: panel.selector,
+    side: panel.side,
+    required: false,
+    hideable: true,
+    movable: false,
+    resizable: false
+  };
+}
+
 export function addPanel(manifest: IntegrationManifest, panel: ManifestPanel): IntegrationManifest {
-  return touch({ ...manifest, panels: [...manifest.panels, panel] });
+  return addSurface(touch({ ...manifest, panels: upsertPanel(manifest.panels, panel) }), panelFromLegacyPanel(panel));
 }
 
 export function updatePanel(manifest: IntegrationManifest, panelId: string, patch: Partial<ManifestPanel>): IntegrationManifest {
   return touch({
     ...manifest,
-    panels: manifest.panels.map((panel) => (panel.id === panelId ? { ...panel, ...patch } : panel))
+    panels: manifest.panels.map((panel) => (panel.id === panelId ? { ...panel, ...patch } : panel)),
+    surfaces: manifest.surfaces.map((surface) =>
+      surface.id === panelId
+        ? {
+            ...surface,
+            label: patch.label ?? surface.label,
+            selector: patch.selector ?? surface.selector,
+            side: patch.side ?? surface.side
+          }
+        : surface
+    )
   });
 }
 
@@ -41,8 +132,38 @@ export function removePanel(manifest: IntegrationManifest, panelId: string): Int
   return touch({
     ...manifest,
     panels: manifest.panels.filter((panel) => panel.id !== panelId),
+    surfaces: manifest.surfaces.filter((surface) => surface.id !== panelId),
     views: manifest.views.map((view) => ({ ...view, panels: view.panels.filter((id) => id !== panelId) }))
   });
+}
+
+export function addSurface(manifest: IntegrationManifest, surface: ManifestSurface): IntegrationManifest {
+  const panels = surface.selector
+    ? upsertPanel(manifest.panels, {
+        id: surface.id,
+        label: surface.label,
+        selector: surface.selector,
+        side: surface.side
+      })
+    : manifest.panels;
+
+  return touch({
+    ...manifest,
+    panels,
+    surfaces: upsertSurface(manifest.surfaces, surface)
+  });
+}
+
+function upsertSurface(surfaces: ManifestSurface[], surface: ManifestSurface) {
+  return surfaces.some((item) => item.id === surface.id)
+    ? surfaces.map((item) => (item.id === surface.id ? surface : item))
+    : [...surfaces, surface];
+}
+
+function upsertPanel(panels: ManifestPanel[], panel: ManifestPanel) {
+  return panels.some((item) => item.id === panel.id)
+    ? panels.map((item) => (item.id === panel.id ? panel : item))
+    : [...panels, panel];
 }
 
 export function addView(manifest: IntegrationManifest, view: ManifestView): IntegrationManifest {
@@ -61,7 +182,12 @@ export function removeView(manifest: IntegrationManifest, viewId: string): Integ
 }
 
 export function addAction(manifest: IntegrationManifest, action: ManifestAction): IntegrationManifest {
-  return touch({ ...manifest, actions: [...manifest.actions, action] });
+  return touch({
+    ...manifest,
+    actions: manifest.actions.some((item) => item.id === action.id)
+      ? manifest.actions.map((item) => (item.id === action.id ? action : item))
+      : [...manifest.actions, action]
+  });
 }
 
 export function updateAction(manifest: IntegrationManifest, actionId: string, patch: Partial<ManifestAction>): IntegrationManifest {
@@ -75,14 +201,29 @@ export function removeAction(manifest: IntegrationManifest, actionId: string): I
   return touch({ ...manifest, actions: manifest.actions.filter((action) => action.id !== actionId) });
 }
 
+export function addProfile(manifest: IntegrationManifest, profile: UserInterfaceProfile): IntegrationManifest {
+  return touch({
+    ...manifest,
+    profiles: manifest.profiles.some((item) => item.id === profile.id)
+      ? manifest.profiles.map((item) => (item.id === profile.id ? profile : item))
+      : [...manifest.profiles, profile]
+  });
+}
+
 export function generateDynaraJson(manifest: IntegrationManifest): string {
   return JSON.stringify(
     {
+      appId: manifest.appId,
       name: manifest.name,
+      version: manifest.version,
       color: manifest.color,
       panels: manifest.panels,
+      surfaces: manifest.surfaces,
       views: manifest.views,
-      actions: manifest.actions
+      actions: manifest.actions,
+      designSystem: manifest.designSystem,
+      constraints: manifest.constraints,
+      profiles: manifest.profiles
     },
     null,
     2
@@ -92,11 +233,17 @@ export function generateDynaraJson(manifest: IntegrationManifest): string {
 export function generateScriptSnippet(manifest: IntegrationManifest): string {
   const init = JSON.stringify(
     {
+      appId: manifest.appId,
       name: manifest.name,
+      version: manifest.version,
       color: manifest.color,
       panels: manifest.panels,
+      surfaces: manifest.surfaces,
       views: manifest.views,
-      actions: manifest.actions
+      actions: manifest.actions,
+      designSystem: manifest.designSystem,
+      constraints: manifest.constraints,
+      profiles: manifest.profiles
     },
     null,
     2

@@ -1,4 +1,5 @@
 import type { SupabaseClient, User } from "@supabase/supabase-js";
+import { normalizeManifest } from "@/lib/dashboard/manifest-state";
 import type { IntegrationManifest } from "@/types/manifest";
 
 type ManifestRow = {
@@ -6,31 +7,43 @@ type ManifestRow = {
   slug: string;
   name: string;
   color: string;
+  app_id?: string | null;
+  version?: string | null;
   panels: IntegrationManifest["panels"];
+  surfaces?: IntegrationManifest["surfaces"] | null;
   views: IntegrationManifest["views"];
   actions: IntegrationManifest["actions"];
+  design_system?: IntegrationManifest["designSystem"] | null;
+  constraints?: IntegrationManifest["constraints"] | null;
+  profiles?: IntegrationManifest["profiles"] | null;
   created_at: string;
   updated_at: string;
 };
 
 function fromRow(row: ManifestRow): IntegrationManifest {
-  return {
+  return normalizeManifest({
     id: row.id,
     slug: row.slug,
     name: row.name,
     color: row.color,
+    appId: row.app_id ?? row.slug,
+    version: row.version ?? "1.0.0",
     panels: row.panels ?? [],
+    surfaces: row.surfaces ?? [],
     views: row.views ?? [],
     actions: row.actions ?? [],
+    designSystem: row.design_system ?? undefined,
+    constraints: row.constraints ?? undefined,
+    profiles: row.profiles ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at
-  };
+  });
 }
 
 export async function loadManifests(supabase: SupabaseClient, _user: User): Promise<IntegrationManifest[] | null> {
   const { data, error } = await supabase
     .from("manifests")
-    .select("id,slug,name,color,panels,views,actions,created_at,updated_at")
+    .select("id,slug,name,color,app_id,version,panels,surfaces,views,actions,design_system,constraints,profiles,created_at,updated_at")
     .order("updated_at", { ascending: false })
     .returns<ManifestRow[]>();
 
@@ -48,9 +61,15 @@ export async function saveManifestToSupabase(supabase: SupabaseClient, userId: s
     slug: manifest.slug,
     name: manifest.name,
     color: manifest.color,
+    app_id: manifest.appId,
+    version: manifest.version,
     panels: manifest.panels,
+    surfaces: manifest.surfaces,
     views: manifest.views,
-    actions: manifest.actions
+    actions: manifest.actions,
+    design_system: manifest.designSystem,
+    constraints: manifest.constraints,
+    profiles: manifest.profiles
   });
 }
 

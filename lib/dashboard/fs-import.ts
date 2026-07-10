@@ -1,7 +1,7 @@
 import type { IntegrationManifest } from "@/types/manifest";
 
 const SKIP_DIRS = new Set(["node_modules", "dist", "build", ".git", ".next", "out", "coverage", ".vercel", ".netlify"]);
-const SOURCE_EXTENSIONS = [".tsx", ".jsx", ".ts", ".js", ".vue", ".svelte"];
+const SOURCE_EXTENSIONS = [".tsx", ".jsx", ".ts", ".js", ".vue", ".svelte", ".html"];
 const MAX_SOURCE_FILES = 400;
 
 export type DiscoveredFile = { path: string; handle: FileSystemFileHandle };
@@ -41,7 +41,11 @@ export async function collectSourceFiles(root: FileSystemDirectoryHandle): Promi
 
   // Surface likely "dashboard/layout" files first — they're the most useful to analyze.
   return results.sort((a, b) => {
-    const score = (path: string) => (/dashboard|layout|page/i.test(path) ? 0 : 1);
+    const score = (path: string) => {
+      if (/^index\.html$|\/index\.html$/i.test(path)) return 0;
+      if (/dashboard|layout|page/i.test(path)) return 1;
+      return 2;
+    };
     return score(a.path) - score(b.path) || a.path.localeCompare(b.path);
   });
 }
@@ -67,9 +71,8 @@ export type ApplyResult = {
   skipped: { id: string; componentName: string; reason: string }[];
 };
 
-// Wraps each selected self-closing JSX component tag, e.g. `<Stats />`, with a
-// `<div data-dynara-panel="...">...</div>`. Non-self-closing usages are skipped
-// (regex can't safely balance arbitrary nested JSX) and reported for manual edit.
+// Applies a Dynara marker to each selected section. Static HTML elements with
+// matching ids are annotated in place; self-closing JSX component tags are wrapped.
 export function applyPanelWrappers(
   sourceText: string,
   selections: { id: string; componentName?: string }[]
@@ -79,13 +82,20 @@ export function applyPanelWrappers(
 
   for (const selection of selections) {
     const componentName = selection.componentName;
-    if (!componentName) {
-      result.skipped.push({ id: selection.id, componentName: "(unknown)", reason: "no source component name" });
+    if (text.includes(`data-dynara-panel="${selection.id}"`) || text.includes(`data-dynara-panel='${selection.id}'`)) {
+      result.applied.push({ id: selection.id, componentName: componentName ?? `#${selection.id}` });
       continue;
     }
 
-    if (text.includes(`data-dynara-panel="${selection.id}"`) || text.includes(`data-dynara-panel='${selection.id}'`)) {
-      result.applied.push({ id: selection.id, componentName });
+    const htmlResult = applyHtmlIdMarker(text, selection.id);
+    if (htmlResult.applied) {
+      text = htmlResult.text;
+      result.applied.push({ id: selection.id, componentName: componentName ?? `#${selection.id}` });
+      continue;
+    }
+
+    if (!componentName) {
+      result.skipped.push({ id: selection.id, componentName: `#${selection.id}`, reason: "couldn't find a matching HTML id or source component" });
       continue;
     }
 
@@ -108,12 +118,39 @@ export function applyPanelWrappers(
   return { text, result };
 }
 
+function applyHtmlIdMarker(sourceText: string, panelId: string): { text: string; applied: boolean } {
+  const htmlIdPattern = new RegExp(
+    `(<[A-Za-z][\\w:-]*\\b(?=[^>]*\\bid=["']${escapeRegExp(panelId)}["'])(?![^>]*\\bdata-dynara-panel=)[^>]*)(>)`
+  );
+  if (!htmlIdPattern.test(sourceText)) return { text: sourceText, applied: false };
+  return {
+    text: sourceText.replace(htmlIdPattern, `$1 data-dynara-panel="${panelId}"$2`),
+    applied: true
+  };
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 const SCRIPT_START = "<!-- dynara-integration:start -->";
 const SCRIPT_END = "<!-- dynara-integration:end -->";
 
 export function upsertScriptBlock(htmlText: string, manifest: IntegrationManifest, sdkBaseUrl: string): string {
   const init = JSON.stringify(
-    { name: manifest.name, color: manifest.color, panels: manifest.panels, views: manifest.views, actions: manifest.actions },
+    {
+      appId: manifest.appId,
+      name: manifest.name,
+      version: manifest.version,
+      color: manifest.color,
+      panels: manifest.panels,
+      surfaces: manifest.surfaces,
+      views: manifest.views,
+      actions: manifest.actions,
+      designSystem: manifest.designSystem,
+      constraints: manifest.constraints,
+      profiles: manifest.profiles
+    },
     null,
     2
   );

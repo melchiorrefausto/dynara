@@ -2,11 +2,15 @@
   "name": "dynara",
   "version": "0.1.0",
   "private": true,
+  "bin": {
+    "dynara": "./scripts/dynara-scan.mjs"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "dynara:scan": "node scripts/dynara-scan.mjs scan",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

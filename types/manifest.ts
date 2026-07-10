@@ -17,6 +17,66 @@ export type ManifestView = {
 export type ManifestAction = {
   id: string;
   label: string;
+  description?: string;
+  kind?: "command" | "navigation" | "mutation" | "export";
+  requiresConfirmation?: boolean;
+};
+
+export type ManifestSurface = {
+  id: string;
+  label: string;
+  type: "panel" | "sidebar" | "toolbar" | "canvas" | "inspector" | "modal" | "navigation" | "content";
+  selector?: string;
+  nativeHandle?: string;
+  side?: "left" | "right" | "top" | "bottom";
+  required?: boolean;
+  hideable: boolean;
+  movable: boolean;
+  resizable: boolean;
+  allowedPositions?: Array<"left" | "right" | "top" | "bottom" | "center">;
+  description?: string;
+};
+
+export type ManifestDesignToken = {
+  id: string;
+  name: string;
+  category: "color" | "typography" | "spacing" | "radius" | "shadow" | "motion";
+  value: string;
+  mutable: boolean;
+};
+
+export type ManifestDesignSystem = {
+  source?: "figma" | "code" | "api" | "manual";
+  version?: string;
+  tokens: ManifestDesignToken[];
+  componentRefs: Array<{
+    id: string;
+    name: string;
+    sourceId?: string;
+    description?: string;
+  }>;
+};
+
+export type ManifestConstraint = {
+  id: string;
+  label: string;
+  description: string;
+  severity: "info" | "warning" | "blocking";
+};
+
+export type UserInterfaceProfile = {
+  id: string;
+  label: string;
+  description?: string;
+  density: "compact" | "comfortable" | "spacious";
+  accessibility: {
+    contrast: "normal" | "high";
+    motion: "normal" | "reduced";
+    fontScale: number;
+  };
+  visibleSurfaces: string[];
+  pinnedActions: string[];
+  tokenOverrides?: Record<string, string>;
 };
 
 export type IntegrationManifest = {
@@ -24,9 +84,15 @@ export type IntegrationManifest = {
   slug: string;
   name: string;
   color: string;
+  appId: string;
+  version: string;
   panels: ManifestPanel[];
+  surfaces: ManifestSurface[];
   views: ManifestView[];
   actions: ManifestAction[];
+  designSystem: ManifestDesignSystem;
+  constraints: ManifestConstraint[];
+  profiles: UserInterfaceProfile[];
   createdAt: string;
   updatedAt: string;
 };

@@ -16,11 +16,7 @@ export const defaultPreferences: WorkspacePreferences = {
 };
 
 export const defaultConnectedApps: ConnectedApp[] = [
-  { id: "figma", name: "Figma", status: "available" },
-  { id: "notion", name: "Notion", status: "available" },
-  { id: "linear", name: "Linear", status: "available" },
-  { id: "gmail", name: "Gmail", status: "available" },
-  { id: "slack", name: "Slack", status: "available" }
+  { id: "figma", name: "Figma", status: "available" }
 ];
 
 export function readJson<T>(key: string, fallback: T): T {

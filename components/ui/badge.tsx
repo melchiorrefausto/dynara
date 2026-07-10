@@ -7,7 +7,7 @@ type BadgeProps = React.HTMLAttributes<HTMLSpanElement> & {
 
 const tones = {
   purple: "bg-primary/10 text-primary",
-  green: "bg-emerald-50 text-emerald-700",
+  green: "bg-emerald-100 text-emerald-700",
   amber: "bg-amber-50 text-amber-700",
   red: "bg-red-50 text-red-700",
   blue: "bg-sky-50 text-sky-700",
@@ -17,7 +17,7 @@ const tones = {
 export function Badge({ className, tone = "gray", ...props }: BadgeProps) {
   return (
     <span
-      className={cn("inline-flex items-center rounded-md px-2 py-1 text-xs font-semibold", tones[tone], className)}
+      className={cn("inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold", tones[tone], className)}
       {...props}
     />
   );

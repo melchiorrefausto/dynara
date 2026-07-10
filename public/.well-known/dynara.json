@@ -1,16 +1,624 @@
 {
-  "name": "Numerix (well-known)",
-  "color": "#0ea5e9",
+  "name": "BeFour",
+  "color": "#7c3aed",
+  "appId": "befour",
+  "version": "1.0.0",
   "panels": [
-    { "id": "game-selector", "label": "Game Selector", "selector": "[data-dynara-panel='game-selector']" },
-    { "id": "stats", "label": "Statistics", "selector": "[data-dynara-panel='stats']" },
-    { "id": "generator", "label": "Number Generator", "selector": "[data-dynara-panel='generator']" }
+    {
+      "id": "navigation",
+      "label": "Navigation",
+      "selector": "header"
+    },
+    {
+      "id": "hero",
+      "label": "Hero",
+      "selector": "[data-dynara-panel='hero']"
+    },
+    {
+      "id": "hero-search",
+      "label": "Hero Search",
+      "selector": "[data-dynara-panel='hero-search']"
+    },
+    {
+      "id": "tool-categories",
+      "label": "Tool Categories",
+      "selector": "[data-dynara-panel='tool-categories']"
+    },
+    {
+      "id": "main-content",
+      "label": "Main Content",
+      "selector": "main"
+    },
+    {
+      "id": "footer",
+      "label": "Footer",
+      "selector": "footer"
+    }
+  ],
+  "surfaces": [
+    {
+      "id": "navigation",
+      "label": "Navigation",
+      "type": "navigation",
+      "selector": "header",
+      "side": "top",
+      "required": false,
+      "hideable": true,
+      "movable": false,
+      "resizable": false
+    },
+    {
+      "id": "hero",
+      "label": "Hero",
+      "type": "content",
+      "selector": "[data-dynara-panel='hero']",
+      "required": false,
+      "hideable": true,
+      "movable": false,
+      "resizable": false,
+      "description": "The first viewport hero area on the BeFour home page."
+    },
+    {
+      "id": "hero-search",
+      "label": "Hero Search",
+      "type": "toolbar",
+      "selector": "[data-dynara-panel='hero-search']",
+      "required": false,
+      "hideable": true,
+      "movable": false,
+      "resizable": false,
+      "description": "The primary hero input and call to action."
+    },
+    {
+      "id": "tool-categories",
+      "label": "Tool Categories",
+      "type": "content",
+      "selector": "[data-dynara-panel='tool-categories']",
+      "required": false,
+      "hideable": true,
+      "movable": false,
+      "resizable": false,
+      "description": "The homepage tool category grid."
+    },
+    {
+      "id": "main-content",
+      "label": "Main Content",
+      "type": "panel",
+      "selector": "main",
+      "required": true,
+      "hideable": false,
+      "movable": false,
+      "resizable": false
+    },
+    {
+      "id": "footer",
+      "label": "Footer",
+      "type": "content",
+      "selector": "footer",
+      "side": "bottom",
+      "required": false,
+      "hideable": true,
+      "movable": false,
+      "resizable": false
+    }
   ],
   "views": [
-    { "id": "full", "label": "Full dashboard", "panels": ["game-selector", "stats", "generator"] },
-    { "id": "focus", "label": "Generator only", "panels": ["generator"] }
+    {
+      "id": "default",
+      "label": "Default",
+      "panels": [
+        "navigation",
+        "hero",
+        "hero-search",
+        "tool-categories",
+        "main-content",
+        "footer"
+      ]
+    },
+    {
+      "id": "focus-content",
+      "label": "Focus content",
+      "panels": [
+        "hero",
+        "hero-search",
+        "tool-categories",
+        "main-content"
+      ]
+    },
+    {
+      "id": "hero-focus",
+      "label": "Hero focus",
+      "panels": [
+        "navigation",
+        "main-content",
+        "hero",
+        "hero-search"
+      ]
+    },
+    {
+      "id": "tool-discovery",
+      "label": "Tool discovery",
+      "panels": [
+        "navigation",
+        "main-content",
+        "hero",
+        "hero-search",
+        "tool-categories",
+        "footer"
+      ]
+    },
+    {
+      "id": "reading",
+      "label": "Reading",
+      "panels": [
+        "hero",
+        "hero-search",
+        "tool-categories",
+        "main-content",
+        "footer"
+      ]
+    },
+    {
+      "id": "minimal",
+      "label": "Minimal",
+      "panels": [
+        "main-content"
+      ]
+    }
   ],
   "actions": [
-    { "id": "generate", "label": "Generate numbers" }
+    {
+      "id": "reading-large-text",
+      "label": "Toggle larger text",
+      "description": "Increase main content text size and line height for reading.",
+      "kind": "mutation"
+    },
+    {
+      "id": "reading-width",
+      "label": "Toggle reading width",
+      "description": "Constrain main content width for a focused reading layout.",
+      "kind": "mutation"
+    },
+    {
+      "id": "high-contrast",
+      "label": "Toggle high contrast",
+      "description": "Increase contrast on the current page.",
+      "kind": "mutation"
+    },
+    {
+      "id": "reset-reading",
+      "label": "Reset reading changes",
+      "description": "Remove Dynara reading text, width, and contrast changes.",
+      "kind": "mutation"
+    },
+    {
+      "id": "theme-ocean",
+      "label": "Apply Ocean theme",
+      "description": "Apply a cool blue-green color system.",
+      "kind": "mutation"
+    },
+    {
+      "id": "theme-mono",
+      "label": "Apply Mono theme",
+      "description": "Apply a neutral grayscale color system.",
+      "kind": "mutation"
+    },
+    {
+      "id": "theme-sunset",
+      "label": "Apply Sunset theme",
+      "description": "Apply a warm red-orange color system.",
+      "kind": "mutation"
+    },
+    {
+      "id": "hero-showcase",
+      "label": "Hero showcase",
+      "description": "Turn the home hero into a larger premium landing section.",
+      "kind": "mutation"
+    },
+    {
+      "id": "hero-compact",
+      "label": "Hero compact",
+      "description": "Reduce hero height and tighten the headline/search spacing.",
+      "kind": "mutation"
+    },
+    {
+      "id": "hero-clean",
+      "label": "Hero clean",
+      "description": "Hide decorative hero glows, grid, and floating badges.",
+      "kind": "mutation"
+    },
+    {
+      "id": "hero-reset",
+      "label": "Reset hero",
+      "description": "Remove Dynara hero layout overrides.",
+      "kind": "mutation"
+    },
+    {
+      "id": "reset-interface",
+      "label": "Reset interface",
+      "description": "Remove Dynara theme, layout, and reading overrides.",
+      "kind": "mutation"
+    }
+  ],
+  "designSystem": {
+    "source": "code",
+    "version": "1.0.0",
+    "tokens": [
+      {
+        "id": "color-background",
+        "name": "Background",
+        "category": "color",
+        "value": "40 33% 98%",
+        "mutable": true
+      },
+      {
+        "id": "color-foreground",
+        "name": "Foreground",
+        "category": "color",
+        "value": "0 0% 8%",
+        "mutable": true
+      },
+      {
+        "id": "color-card",
+        "name": "Card",
+        "category": "color",
+        "value": "0 0% 100%",
+        "mutable": true
+      },
+      {
+        "id": "color-card-foreground",
+        "name": "Card Foreground",
+        "category": "color",
+        "value": "0 0% 8%",
+        "mutable": true
+      },
+      {
+        "id": "color-primary",
+        "name": "Primary",
+        "category": "color",
+        "value": "0 0% 8%",
+        "mutable": true
+      },
+      {
+        "id": "color-primary-foreground",
+        "name": "Primary Foreground",
+        "category": "color",
+        "value": "0 0% 100%",
+        "mutable": true
+      },
+      {
+        "id": "color-secondary",
+        "name": "Secondary",
+        "category": "color",
+        "value": "40 24% 95%",
+        "mutable": true
+      },
+      {
+        "id": "color-secondary-foreground",
+        "name": "Secondary Foreground",
+        "category": "color",
+        "value": "0 0% 8%",
+        "mutable": true
+      },
+      {
+        "id": "color-muted",
+        "name": "Muted",
+        "category": "color",
+        "value": "40 24% 95%",
+        "mutable": true
+      },
+      {
+        "id": "color-muted-foreground",
+        "name": "Muted Foreground",
+        "category": "color",
+        "value": "30 6% 42%",
+        "mutable": true
+      },
+      {
+        "id": "color-accent",
+        "name": "Accent",
+        "category": "color",
+        "value": "262 83% 58%",
+        "mutable": true
+      },
+      {
+        "id": "color-accent-foreground",
+        "name": "Accent Foreground",
+        "category": "color",
+        "value": "0 0% 100%",
+        "mutable": true
+      },
+      {
+        "id": "color-border",
+        "name": "Border",
+        "category": "color",
+        "value": "220 13% 91%",
+        "mutable": true
+      },
+      {
+        "id": "radius-base",
+        "name": "Base Radius",
+        "category": "radius",
+        "value": "0.875rem",
+        "mutable": true
+      }
+    ],
+    "componentRefs": []
+  },
+  "constraints": [],
+  "profiles": [
+    {
+      "id": "content-focus",
+      "label": "Content focus",
+      "description": "Hide navigation and footer so the main content is the only visible surface.",
+      "density": "comfortable",
+      "accessibility": {
+        "contrast": "normal",
+        "motion": "reduced",
+        "fontScale": 1
+      },
+      "visibleSurfaces": [
+        "hero",
+        "hero-search",
+        "tool-categories",
+        "main-content"
+      ],
+      "pinnedActions": [
+        "reading-width",
+        "reading-large-text"
+      ],
+      "tokenOverrides": {
+        "color-background": "0 0% 100%",
+        "color-card": "0 0% 100%",
+        "color-muted": "0 0% 96%",
+        "color-accent": "0 0% 16%",
+        "radius-base": "0.5rem"
+      }
+    },
+    {
+      "id": "reading-mode",
+      "label": "Reading mode",
+      "description": "Keep content and footer visible, reduce motion, and expose reading controls.",
+      "density": "spacious",
+      "accessibility": {
+        "contrast": "high",
+        "motion": "reduced",
+        "fontScale": 1.125
+      },
+      "visibleSurfaces": [
+        "hero",
+        "hero-search",
+        "tool-categories",
+        "main-content",
+        "footer"
+      ],
+      "pinnedActions": [
+        "reading-width",
+        "reading-large-text",
+        "high-contrast",
+        "reset-reading"
+      ],
+      "tokenOverrides": {
+        "color-background": "48 45% 96%",
+        "color-foreground": "28 35% 16%",
+        "color-card": "48 35% 99%",
+        "color-muted": "42 32% 90%",
+        "color-muted-foreground": "28 18% 36%",
+        "color-accent": "24 95% 53%",
+        "color-border": "38 30% 80%",
+        "radius-base": "1.125rem",
+        "color-accent-foreground": "0 0% 8%"
+      }
+    },
+    {
+      "id": "ocean-theme",
+      "label": "Ocean theme",
+      "description": "Switch BeFour to a cool blue-green palette with comfortable spacing.",
+      "density": "comfortable",
+      "accessibility": {
+        "contrast": "normal",
+        "motion": "normal",
+        "fontScale": 1
+      },
+      "visibleSurfaces": [
+        "navigation",
+        "main-content",
+        "hero",
+        "hero-search",
+        "tool-categories",
+        "footer"
+      ],
+      "pinnedActions": [
+        "theme-ocean",
+        "reset-interface"
+      ],
+      "tokenOverrides": {
+        "color-background": "190 60% 97%",
+        "color-foreground": "200 56% 14%",
+        "color-card": "0 0% 100%",
+        "color-primary": "196 87% 33%",
+        "color-primary-foreground": "0 0% 100%",
+        "color-secondary": "190 45% 90%",
+        "color-muted": "190 35% 92%",
+        "color-muted-foreground": "198 22% 34%",
+        "color-accent": "176 72% 38%",
+        "color-border": "190 30% 82%",
+        "color-ring": "196 87% 33%",
+        "radius-base": "0.75rem",
+        "color-accent-foreground": "0 0% 8%"
+      }
+    },
+    {
+      "id": "mono-compact",
+      "label": "Mono compact",
+      "description": "Use a grayscale palette and denser spacing for scanning.",
+      "density": "compact",
+      "accessibility": {
+        "contrast": "normal",
+        "motion": "reduced",
+        "fontScale": 0.95
+      },
+      "visibleSurfaces": [
+        "navigation",
+        "main-content",
+        "hero",
+        "hero-search",
+        "tool-categories",
+        "footer"
+      ],
+      "pinnedActions": [
+        "theme-mono",
+        "reset-interface"
+      ],
+      "tokenOverrides": {
+        "color-background": "0 0% 98%",
+        "color-foreground": "0 0% 6%",
+        "color-card": "0 0% 100%",
+        "color-primary": "0 0% 6%",
+        "color-primary-foreground": "0 0% 100%",
+        "color-secondary": "0 0% 93%",
+        "color-muted": "0 0% 93%",
+        "color-muted-foreground": "0 0% 36%",
+        "color-accent": "0 0% 16%",
+        "color-border": "0 0% 84%",
+        "color-ring": "0 0% 6%",
+        "radius-base": "0.375rem"
+      }
+    },
+    {
+      "id": "sunset-spacious",
+      "label": "Sunset spacious",
+      "description": "Use a warmer palette and more generous section spacing.",
+      "density": "spacious",
+      "accessibility": {
+        "contrast": "normal",
+        "motion": "normal",
+        "fontScale": 1.05
+      },
+      "visibleSurfaces": [
+        "navigation",
+        "main-content",
+        "hero",
+        "hero-search",
+        "tool-categories",
+        "footer"
+      ],
+      "pinnedActions": [
+        "theme-sunset",
+        "reset-interface"
+      ],
+      "tokenOverrides": {
+        "color-background": "34 70% 97%",
+        "color-foreground": "18 50% 14%",
+        "color-card": "0 0% 100%",
+        "color-primary": "346 77% 50%",
+        "color-primary-foreground": "0 0% 100%",
+        "color-secondary": "32 72% 90%",
+        "color-muted": "32 55% 91%",
+        "color-muted-foreground": "20 25% 36%",
+        "color-accent": "24 95% 53%",
+        "color-border": "28 42% 82%",
+        "color-ring": "346 77% 50%",
+        "radius-base": "1.25rem",
+        "color-accent-foreground": "0 0% 8%"
+      }
+    },
+    {
+      "id": "hero-showcase",
+      "label": "Hero showcase",
+      "description": "Make the BeFour home hero larger, more atmospheric, and first-screen focused.",
+      "density": "spacious",
+      "accessibility": {
+        "contrast": "normal",
+        "motion": "normal",
+        "fontScale": 1.05
+      },
+      "visibleSurfaces": [
+        "navigation",
+        "main-content",
+        "hero",
+        "hero-search",
+        "tool-categories",
+        "footer"
+      ],
+      "pinnedActions": [
+        "hero-showcase",
+        "hero-clean",
+        "theme-ocean",
+        "reset-interface"
+      ],
+      "tokenOverrides": {
+        "color-background": "190 60% 97%",
+        "color-foreground": "200 56% 14%",
+        "color-card": "0 0% 100%",
+        "color-primary": "196 87% 33%",
+        "color-primary-foreground": "0 0% 100%",
+        "color-secondary": "190 45% 90%",
+        "color-muted": "190 35% 92%",
+        "color-muted-foreground": "198 22% 34%",
+        "color-accent": "176 72% 38%",
+        "color-border": "190 30% 82%",
+        "color-ring": "196 87% 33%",
+        "radius-base": "1rem",
+        "color-accent-foreground": "0 0% 8%"
+      }
+    },
+    {
+      "id": "hero-compact",
+      "label": "Hero compact",
+      "description": "Tighten the home hero so users reach the tools faster.",
+      "density": "compact",
+      "accessibility": {
+        "contrast": "normal",
+        "motion": "reduced",
+        "fontScale": 0.95
+      },
+      "visibleSurfaces": [
+        "navigation",
+        "main-content",
+        "hero",
+        "hero-search",
+        "tool-categories",
+        "footer"
+      ],
+      "pinnedActions": [
+        "hero-compact",
+        "hero-clean",
+        "reset-interface"
+      ],
+      "tokenOverrides": {
+        "color-background": "0 0% 98%",
+        "color-foreground": "0 0% 6%",
+        "color-card": "0 0% 100%",
+        "color-secondary": "0 0% 93%",
+        "color-muted": "0 0% 93%",
+        "color-accent": "0 0% 16%",
+        "color-border": "0 0% 84%",
+        "radius-base": "0.5rem",
+        "color-muted-foreground": "0 0% 34%"
+      }
+    },
+    {
+      "id": "full-interface",
+      "label": "Full interface",
+      "description": "Show all BeFour surfaces.",
+      "density": "comfortable",
+      "accessibility": {
+        "contrast": "normal",
+        "motion": "normal",
+        "fontScale": 1
+      },
+      "visibleSurfaces": [
+        "navigation",
+        "hero",
+        "hero-search",
+        "tool-categories",
+        "main-content",
+        "footer"
+      ],
+      "pinnedActions": [
+        "reset-interface"
+      ]
+    }
   ]
 }

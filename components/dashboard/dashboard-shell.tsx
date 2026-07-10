@@ -33,7 +33,8 @@ import {
 import {
   activeManifestStorageKey,
   createBlankManifest,
-  manifestsStorageKey
+  manifestsStorageKey,
+  normalizeManifest
 } from "@/lib/dashboard/manifest-state";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
@@ -41,7 +42,7 @@ import {
   saveConnectedAppToSupabase,
   savePreferencesToSupabase
 } from "@/lib/supabase/dashboard-store";
-import { loadManifests, saveManifestToSupabase } from "@/lib/supabase/manifest-store";
+import { deleteManifestFromSupabase, loadManifests, saveManifestToSupabase } from "@/lib/supabase/manifest-store";
 import { getConnector } from "@/lib/connectors/registry";
 import type { ConnectorProvider } from "@/lib/connectors/types";
 import { cn, initials } from "@/lib/utils";
@@ -52,6 +53,8 @@ type DashboardUser = {
   email: string;
   name: string;
 };
+
+const mockProjectNames = new Set(["", "crm", "numerix", "numeri", "numer", "nume"]);
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
@@ -77,7 +80,7 @@ export function DashboardShell({ view = "home" }: { view?: "home" | "settings" }
   const [supabaseUserId, setSupabaseUserId] = useState<string | null>(null);
 
   const activeManifest = useMemo(
-    () => manifests.find((manifest) => manifest.id === activeManifestId) ?? manifests[0] ?? createBlankManifest(),
+    () => manifests.find((manifest) => manifest.id === activeManifestId) ?? manifests[0] ?? null,
     [activeManifestId, manifests]
   );
 
@@ -125,10 +128,20 @@ export function DashboardShell({ view = "home" }: { view?: "home" | "settings" }
       if (cancelled) return;
 
       if (manifestState) {
-        setManifests(manifestState);
-        setActiveManifestId(manifestState[0]?.id ?? "");
+        const cleanedManifests = filterMockProjects(manifestState);
+        setManifests(cleanedManifests);
+        setActiveManifestId(cleanedManifests[0]?.id ?? "");
+
+        const removedManifests = manifestState.filter((manifest) => !cleanedManifests.some((item) => item.id === manifest.id));
+        if (removedManifests.length > 0) {
+          Promise.all(
+            removedManifests.map((manifest) => deleteManifestFromSupabase(supabase, user.id, manifest.id))
+          ).catch(() => undefined);
+        }
       } else {
-        const storedManifests = readJson<IntegrationManifest[]>(manifestsStorageKey, []);
+        const storedManifests = filterMockProjects(
+          readJson<Partial<IntegrationManifest>[]>(manifestsStorageKey, []).map(normalizeManifest)
+        );
         const storedActiveManifest = readJson<string>(activeManifestStorageKey, "");
         setManifests(storedManifests);
         setActiveManifestId(
@@ -148,10 +161,12 @@ export function DashboardShell({ view = "home" }: { view?: "home" | "settings" }
         return;
       }
 
-      const storedApps = readJson<ConnectedApp[]>(appsStorageKey, defaultConnectedApps);
+      const enabledAppIds = new Set(defaultConnectedApps.map((app) => app.id));
+      const storedApps = readJson<ConnectedApp[]>(appsStorageKey, defaultConnectedApps)
+        .filter((app) => enabledAppIds.has(app.id));
       const storedPreferences = readJson<WorkspacePreferences>(preferencesStorageKey, defaultPreferences);
 
-      setConnectedApps(storedApps);
+      setConnectedApps(storedApps.length > 0 ? storedApps : defaultConnectedApps);
       setPreferences(storedPreferences);
       setPersistenceMode("local");
       setAuthReady(true);
@@ -173,19 +188,24 @@ export function DashboardShell({ view = "home" }: { view?: "home" | "settings" }
     writeJson(manifestsStorageKey, manifests);
     writeJson(activeManifestStorageKey, activeManifestId);
 
-    if (persistenceMode === "supabase" && supabaseUserId) {
-      const supabase = createSupabaseBrowserClient();
-
-      if (supabase) {
-        Promise.all([
-          ...connectedApps.map((app) => saveConnectedAppToSupabase(supabase, supabaseUserId, app)),
-          ...manifests.map((manifest) => saveManifestToSupabase(supabase, supabaseUserId, manifest)),
-          savePreferencesToSupabase(supabase, supabaseUserId, preferences)
-        ]).catch(() => {
-          setPersistenceMode("local");
-        });
-      }
+    if (persistenceMode !== "supabase" || !supabaseUserId) {
+      return;
     }
+
+    const timeoutId = window.setTimeout(() => {
+      const supabase = createSupabaseBrowserClient();
+      if (!supabase) return;
+
+      Promise.all([
+        ...connectedApps.map((app) => saveConnectedAppToSupabase(supabase, supabaseUserId, app)),
+        ...manifests.map((manifest) => saveManifestToSupabase(supabase, supabaseUserId, manifest)),
+        savePreferencesToSupabase(supabase, supabaseUserId, preferences)
+      ]).catch(() => {
+        setPersistenceMode("local");
+      });
+    }, 600);
+
+    return () => window.clearTimeout(timeoutId);
   }, [activeManifestId, authReady, connectedApps, manifests, persistenceMode, preferences, supabaseUserId]);
 
   async function logout() {
@@ -196,7 +216,7 @@ export function DashboardShell({ view = "home" }: { view?: "home" | "settings" }
     }
 
     localStorage.removeItem("dynara-session");
-    router.replace("/login");
+    router.replace("/");
   }
 
   function upsertManifest(manifest: IntegrationManifest) {
@@ -302,6 +322,8 @@ export function DashboardShell({ view = "home" }: { view?: "home" | "settings" }
         onToggleApp={toggleApp}
         onPreferenceChange={updatePreference}
       />
+    ) : !activeManifest ? (
+      <EmptyProjectsState onCreateProject={() => upsertManifest(createBlankManifest("New Project"))} />
     ) : (
       <IntegrationBuilder manifest={activeManifest} onUpdateManifest={upsertManifest} />
     );
@@ -348,7 +370,7 @@ export function DashboardShell({ view = "home" }: { view?: "home" | "settings" }
             view={view}
             onClose={() => setSidebarOpen(false)}
             onCreateManifest={() => {
-              upsertManifest(createBlankManifest());
+              upsertManifest(createBlankManifest("New Project"));
               setSidebarOpen(false);
             }}
             onSelectManifest={(id) => {
@@ -378,8 +400,8 @@ export function DashboardShell({ view = "home" }: { view?: "home" | "settings" }
             notificationsOpen={notificationsOpen}
             profileOpen={profileOpen}
             user={user}
-            workspaceName={activeManifest?.name ?? "New integration"}
-            onCreateWorkspace={() => upsertManifest(createBlankManifest())}
+            workspaceName={activeManifest?.name ?? "Projects"}
+            onCreateWorkspace={() => upsertManifest(createBlankManifest("New Project"))}
             onLogout={logout}
             onMenu={() => setSidebarOpen(true)}
             onToggleNotifications={() => setNotificationsOpen((open) => !open)}
@@ -389,6 +411,26 @@ export function DashboardShell({ view = "home" }: { view?: "home" | "settings" }
         </main>
       </div>
     </div>
+  );
+}
+
+function filterMockProjects(manifests: IntegrationManifest[]) {
+  return manifests.filter((manifest) => {
+    const candidates = [manifest.name, manifest.slug, manifest.appId].map((value) => value.toLowerCase().trim());
+    const isNamedMock = candidates.some((value) => mockProjectNames.has(value));
+    return !(isNamedMock && isEmptyProject(manifest));
+  });
+}
+
+function isEmptyProject(manifest: IntegrationManifest) {
+  return (
+    manifest.panels.length === 0 &&
+    manifest.surfaces.length === 0 &&
+    manifest.views.length === 0 &&
+    manifest.actions.length === 0 &&
+    manifest.designSystem.tokens.length === 0 &&
+    manifest.designSystem.componentRefs.length === 0 &&
+    manifest.profiles.length === 0
   );
 }
 
@@ -422,7 +464,7 @@ function Sidebar({
 
       <div className="space-y-6 overflow-y-auto pr-1">
         <nav>
-          <p className="mb-3 text-xs font-bold uppercase tracking-normal text-muted-foreground">Integrations</p>
+          <p className="mb-3 text-xs font-bold uppercase tracking-normal text-muted-foreground">Projects</p>
           <div className="space-y-1">
             {manifests.map((manifest) => (
               <div
@@ -440,7 +482,9 @@ function Sidebar({
                   <LayoutDashboard className="h-4 w-4 shrink-0 text-slate-500" />
                   <span className="min-w-0 flex-1 truncate">{manifest.name}</span>
                 </Link>
-                {view === "home" && manifest.id === activeManifestId ? <span className="h-2 w-2 rounded-full bg-emerald-500" /> : null}
+                {view === "home" && manifest.id === activeManifestId ? (
+                  <span className="h-2 w-2 rounded-full bg-gradient-to-br from-primary via-fuchsia-500 to-cyan-400" />
+                ) : null}
                 <button
                   aria-label={`Delete ${manifest.name}`}
                   onClick={() => onDeleteManifest(manifest.id)}
@@ -455,7 +499,7 @@ function Sidebar({
               className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm font-semibold text-muted-foreground hover:bg-muted"
             >
               <Plus className="h-4 w-4" />
-              New Integration
+              New Project
             </button>
           </div>
         </nav>
@@ -508,7 +552,7 @@ function TopBar({
         <div className="relative ml-auto flex items-center gap-2">
           <Button size="sm" variant="dark" onClick={onCreateWorkspace}>
             <Plus className="h-4 w-4" />
-            New Integration
+            New Project
           </Button>
           <Button variant="ghost" size="icon" aria-label="Notifications" onClick={onToggleNotifications}>
             <Bell className="h-5 w-5" />
@@ -553,6 +597,27 @@ function TopBar({
         </div>
       </div>
     </header>
+  );
+}
+
+function EmptyProjectsState({ onCreateProject }: { onCreateProject: () => void }) {
+  return (
+    <div className="mx-auto grid min-h-[calc(100vh-8rem)] max-w-3xl place-items-center px-4">
+      <div className="w-full rounded-lg border border-border bg-white p-8 text-center shadow-sm">
+        <div className="mx-auto grid h-12 w-12 place-items-center rounded-lg bg-slate-950 text-white">
+          <LayoutDashboard className="h-5 w-5" />
+        </div>
+        <h1 className="mt-5 text-2xl font-bold tracking-normal text-slate-950">Create your first project</h1>
+        <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-muted-foreground">
+          Start by creating a software project. From there you can connect code, describe customizable surfaces,
+          add actions, and generate the runtime manifest for that product.
+        </p>
+        <Button className="mt-6" variant="dark" onClick={onCreateProject}>
+          <Plus className="h-4 w-4" />
+          New Project
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -667,7 +732,14 @@ function PreferenceToggle({
       className="flex w-full items-center justify-between rounded-lg bg-slate-50 p-3 text-left text-sm font-semibold text-slate-700"
     >
       <span>{label}</span>
-      <span className={cn("flex items-center gap-1 rounded-md px-2 py-1 text-xs", checked ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500")}>
+      <span
+        className={cn(
+          "flex items-center gap-1 rounded-md px-2 py-1 text-xs",
+          checked
+            ? "bg-gradient-to-r from-primary/10 via-fuchsia-500/10 to-cyan-400/10 text-primary"
+            : "bg-slate-100 text-slate-500"
+        )}
+      >
         {checked ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
         {checked ? "On" : "Off"}
       </span>

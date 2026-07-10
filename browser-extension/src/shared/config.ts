@@ -2,7 +2,7 @@
 // local dev server; installs pointed at a deployed instance can override it
 // from the side panel without a rebuild.
 const STORAGE_KEY = "dynaraBackendUrl";
-const DEFAULT_BACKEND_URL = "http://localhost:3001";
+const DEFAULT_BACKEND_URL = "http://localhost:3003";
 
 export function getBackendUrl(): Promise<string> {
   return new Promise((resolve) => {

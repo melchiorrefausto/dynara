@@ -21,12 +21,33 @@
   var actions = {};
 
   function normalize(raw) {
+    var panels = (raw && raw.panels) || [];
+    var surfaces = (raw && raw.surfaces) || panels.map(function (panel) {
+      return {
+        id: panel.id,
+        label: panel.label,
+        type: "panel",
+        selector: panel.selector,
+        side: panel.side,
+        required: false,
+        hideable: true,
+        movable: false,
+        resizable: false
+      };
+    });
+
     return {
+      appId: raw && raw.appId,
       name: (raw && raw.name) || document.title || location.hostname,
+      version: raw && raw.version,
       color: (raw && raw.color) || "#7c3aed",
-      panels: (raw && raw.panels) || [],
+      panels: panels,
+      surfaces: surfaces,
       views: (raw && raw.views) || [],
-      actions: (raw && raw.actions) || []
+      actions: (raw && raw.actions) || [],
+      designSystem: (raw && raw.designSystem) || { source: "manual", version: "1.0.0", tokens: [], componentRefs: [] },
+      constraints: (raw && raw.constraints) || [],
+      profiles: (raw && raw.profiles) || []
     };
   }
 

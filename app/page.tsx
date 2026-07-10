@@ -10,6 +10,7 @@ import { CubeCluster } from "@/components/marketing/cube-cluster";
 import { ProductMockup } from "@/components/marketing/product-mockup";
 import { Reveal } from "@/components/marketing/reveal";
 import { RotatingWord } from "@/components/marketing/rotating-word";
+import { HeroParticles } from "@/components/marketing/hero-particles";
 import { developerSteps, heroFeatures, platform, pricingTiers, trustSignals, useCases } from "@/lib/content/site";
 
 export default function HomePage() {
@@ -18,15 +19,8 @@ export default function HomePage() {
       <SiteHeader />
 
       <section className="relative overflow-hidden">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -left-40 -top-40 h-[26rem] w-[26rem] rounded-full bg-gradient-to-br from-indigo-400/40 via-primary/25 to-transparent blur-3xl"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-40 top-0 h-[30rem] w-[30rem] rounded-full bg-gradient-to-bl from-fuchsia-400/30 via-cyan-300/20 to-transparent blur-3xl"
-        />
-        <div className="relative z-10 mx-auto grid max-w-7xl gap-12 px-6 pb-16 pt-16 lg:grid-cols-[1.25fr_0.9fr] lg:pb-24 lg:pt-24">
+        <HeroParticles />
+        <div className="relative mx-auto grid max-w-7xl gap-12 px-6 pb-16 pt-16 lg:grid-cols-[1.25fr_0.9fr] lg:pb-24 lg:pt-24">
           <Reveal>
             <Badge tone="gray" className="border border-border bg-white text-slate-600">
               <Hash className="mr-2 h-3.5 w-3.5 text-primary" />

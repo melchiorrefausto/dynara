@@ -28,7 +28,8 @@ export function RotatingWord({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "inline-block bg-gradient-to-r from-indigo-500 to-primary bg-clip-text text-transparent transition-all duration-300 ease-out leading-[1.25] pb-[0.1em]",
+        "inline-block bg-[length:200%_auto] bg-gradient-to-r from-indigo-500 via-primary to-fuchsia-500 bg-clip-text leading-[1.25] pb-[0.1em] text-transparent",
+        "animate-gradient-pan transition-all duration-300 ease-out",
         visible ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0",
         className
       )}

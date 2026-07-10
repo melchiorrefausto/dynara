@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { SiteHeader } from "@/components/site/site-header";
 import { SiteFooter } from "@/components/site/site-footer";
 import { PageHero } from "@/components/marketing/page-hero";
-import { CubeCluster } from "@/components/marketing/cube-cluster";
 import { Reveal } from "@/components/marketing/reveal";
 import { pricingTiers } from "@/lib/content/site";
 
@@ -39,14 +38,9 @@ export default function PricingPage() {
           <div className="grid gap-6 md:grid-cols-3">
             {pricingTiers.map((plan, index) => (
               <Reveal key={plan.name} delay={index * 100}>
-                <div className="flex h-full flex-col rounded-2xl border border-border bg-white p-6 shadow-sm">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <h3 className="text-lg font-bold">{plan.name}</h3>
-                      <p className="mt-3 text-4xl font-black tracking-normal">{plan.price}</p>
-                    </div>
-                    <CubeCluster count={plan.cubes} />
-                  </div>
+                <div className="flex h-full flex-col rounded-2xl border border-border bg-white p-6 shadow-purple">
+                  <h3 className="text-lg font-bold">{plan.name}</h3>
+                  <p className="mt-3 text-4xl font-black tracking-normal">{plan.price}</p>
                   <p className="mt-4 text-sm leading-6 text-muted-foreground">{plan.detail}</p>
                   <ul className="mt-6 flex-1 space-y-3">
                     {plan.features.map((feature) => (

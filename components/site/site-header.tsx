@@ -7,17 +7,20 @@ import { cn } from "@/lib/utils";
 
 export function SiteHeader({ active }: { active?: string }) {
   return (
-    <header className="sticky top-0 z-20 border-b border-border bg-white/90 backdrop-blur">
-      <nav className="mx-auto flex max-w-7xl items-center justify-between gap-6 px-6 py-4">
+    <header className="sticky top-4 z-20 px-4">
+      <nav className="mx-auto flex max-w-6xl items-center justify-between gap-6 rounded-full border border-border bg-white/90 px-5 py-3 shadow-soft backdrop-blur">
         <Link href="/" aria-label="Dynara home">
           <DynaraLogo />
         </Link>
-        <div className="hidden items-center gap-8 text-sm font-semibold text-slate-600 md:flex">
+        <div className="hidden items-center gap-1 text-sm font-semibold text-slate-600 xl:flex">
           {navLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href as Route}
-              className={cn("hover:text-slate-950", active === link.label && "text-slate-950")}
+              className={cn(
+                "rounded-full px-3.5 py-2 hover:bg-slate-100 hover:text-slate-950",
+                active === link.label && "bg-slate-100 text-slate-950"
+              )}
             >
               {link.label}
             </Link>

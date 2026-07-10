@@ -1,7 +1,9 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  Braces,
   Code2,
   Figma,
+  FolderCode,
   LockKeyhole,
   Puzzle,
   Search,
@@ -138,6 +140,7 @@ export const pricingTiers: {
   detail: string;
   cubes: number;
   features: string[];
+  featured?: boolean;
 }[] = [
   {
     name: "Prototype",
@@ -151,7 +154,8 @@ export const pricingTiers: {
     price: "Soon",
     detail: "Shared projects, schema history, generated profiles, and connected design systems.",
     cubes: 3,
-    features: ["Shared projects", "Schema version history", "Generated user profiles", "Figma design sync"]
+    features: ["Shared projects", "Schema version history", "Generated user profiles", "Figma design sync"],
+    featured: true
   },
   {
     name: "Enterprise",
@@ -159,5 +163,50 @@ export const pricingTiers: {
     detail: "Private adapters, governance, audit trails, and app-native runtime controls.",
     cubes: 4,
     features: ["Private adapters", "Governance & permissions", "Audit trails", "App-native runtime controls"]
+  }
+];
+
+export const integrationSources: { icon: LucideIcon; label: string; description: string }[] = [
+  {
+    icon: FolderCode,
+    label: "Local code",
+    description: "Scan a project folder and detect customizable UI sections automatically."
+  },
+  {
+    icon: Figma,
+    label: "Figma",
+    description: "Sync design tokens, components, and styles straight from your files."
+  },
+  {
+    icon: Braces,
+    label: "Your own API",
+    description: "Publish a dynara.json manifest or call the SDK from any backend."
+  }
+];
+
+export const faqs: { question: string; answer: string }[] = [
+  {
+    question: "Do I need a credit card to start?",
+    answer: "No. The Prototype tier is free — import a local project and generate your first manifest without billing details."
+  },
+  {
+    question: "Can I self-host the runtime?",
+    answer: "Enterprise plans include private adapters and app-native runtime controls so you can run Dynara inside your own infrastructure."
+  },
+  {
+    question: "What happens when I outgrow Prototype?",
+    answer: "Team unlocks shared projects and schema history; Enterprise adds governance, audit trails, and dedicated support for production rollouts."
+  },
+  {
+    question: "What can a generated interface actually change?",
+    answer: "Only what your app's manifest explicitly allows — surfaces, tokens, and actions you publish. Required navigation and permissions can never be hidden."
+  },
+  {
+    question: "Does this work with my existing design system?",
+    answer: "Yes. Connect Figma or your own token API so generated profiles stay in sync with your real components, not a copy of them."
+  },
+  {
+    question: "How is this different from feature flags?",
+    answer: "Feature flags toggle code paths you control. Dynara generates per-user interface profiles on top of a contract your app defines, without a redeploy."
   }
 ];

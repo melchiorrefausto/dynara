@@ -27,6 +27,25 @@ import type { IntegrationManifest } from "@/types/manifest";
 const COLOR_SWATCHES = ["#0f172a", "#2563eb", "#0d9488", "#16a34a", "#f59e0b", "#dc2626", "#7c3aed"];
 const PRIVATE_SCAN_COMMAND = "npx dynara scan ./your-app --out public/.well-known/dynara.json";
 const SDK_INSTALL_SNIPPET = `<script src="https://dynara.io/sdk/v1.js"></script>`;
+const AI_AGENT_PROMPT = `You are integrating this app with Dynara, an adaptive interface runtime.
+
+Add a \`data-dynara-panel="<id>"\` attribute (and optionally \`data-dynara-label="<Label>"\`)
+to the outermost element of each meaningful, independently customizable UI section in this
+app — for example the navigation bar, hero section, sidebar, a search/toolbar region, the
+main content area, a pricing table, a footer. Use short kebab-case ids (e.g. "hero",
+"hero-search", "tool-categories").
+
+Rules:
+- Only tag sections that are safe to hide, move, or restyle without breaking navigation,
+  forms, auth, or core functionality.
+- Don't tag individual buttons, icons, or other tiny elements — only meaningful sections.
+- Don't change any existing behavior, styling, layout, or logic — only add the two data
+  attributes to elements that don't already have a data-dynara-panel.
+- Skip this app's admin/internal-only screens; focus on user-facing pages.
+
+When done, tell me which sections you tagged and their ids, then run:
+  npx dynara scan ./ --out public/.well-known/dynara.json
+to generate the Dynara manifest from the attributes you just added.`;
 const EDIT_PASSWORD_STORAGE_PREFIX = "dynara-edit-password";
 
 type ImportStatus = "idle" | "loading" | "done" | "error";
@@ -231,12 +250,22 @@ export function IntegrationBuilder({
           the company machine.
         </p>
 
+        <div className="mt-4">
+          <p className="font-semibold text-slate-800">1. AI-assisted annotation (recommended)</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Paste this into Claude Code, Codex, Cursor, or any coding agent inside your repo. It reads your actual
+            components and tags the right sections — no manual selector-hunting.
+          </p>
+          <CodeBlock className="mt-3" label="Prompt for your coding agent" value={AI_AGENT_PROMPT} />
+        </div>
+
         <div className="mt-4 rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="font-semibold text-slate-800">1. Private local generation</p>
+              <p className="font-semibold text-slate-800">2. Generate the manifest</p>
               <p className="mt-1">
-                Run this inside the customer repo. Only the generated customization contract is imported into Dynara.
+                Run this inside the customer repo, after tagging (step 1) or on its own. Only the generated
+                customization contract is imported into Dynara.
               </p>
             </div>
             <Button size="sm" variant="secondary" onClick={copyPrivateScanCommand}>
@@ -263,7 +292,7 @@ export function IntegrationBuilder({
           />
           <Button size="sm" variant="secondary" onClick={() => manifestFileInputRef.current?.click()} disabled={importStatus === "loading"}>
             <FileJson className="h-4 w-4" />
-            2. Upload generated dynara.json
+            3. Upload generated dynara.json
           </Button>
           <Button size="sm" variant="secondary" onClick={downloadDynaraJson}>
             <Download className="h-4 w-4" />

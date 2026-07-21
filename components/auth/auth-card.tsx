@@ -133,7 +133,14 @@ export function AuthCard({ mode }: { mode: "login" | "signup" }) {
             </div>
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-sm font-semibold">Password</span>
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="text-sm font-semibold">Password</span>
+              {mode === "login" ? (
+                <Link href="/forgot-password" className="text-xs font-semibold text-primary hover:underline">
+                  Forgot password?
+                </Link>
+              ) : null}
+            </div>
             <div className="relative">
               <LockKeyhole className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
               <Input

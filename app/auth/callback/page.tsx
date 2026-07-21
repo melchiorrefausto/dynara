@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { Route } from "next";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -15,13 +16,15 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     async function finishAuth() {
       const supabase = createSupabaseBrowserClient();
+      const params = new URLSearchParams(window.location.search);
+      const next = (params.get("next") || "/dashboard") as Route;
 
       if (!supabase) {
-        router.replace("/dashboard");
+        router.replace(next);
         return;
       }
 
-      const code = new URLSearchParams(window.location.search).get("code");
+      const code = params.get("code");
 
       if (code) {
         const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
@@ -44,7 +47,7 @@ export default function AuthCallbackPage() {
         return;
       }
 
-      router.replace("/dashboard");
+      router.replace(next);
     }
 
     finishAuth();

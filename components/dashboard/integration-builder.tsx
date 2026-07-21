@@ -29,21 +29,28 @@ const PRIVATE_SCAN_COMMAND = "npx dynara scan ./your-app --out public/.well-know
 const SDK_INSTALL_SNIPPET = `<script src="https://dynara.io/sdk/v1.js"></script>`;
 const AI_AGENT_PROMPT = `You are integrating this app with Dynara, an adaptive interface runtime.
 
-Add a \`data-dynara-panel="<id>"\` attribute (and optionally \`data-dynara-label="<Label>"\`)
-to the outermost element of each meaningful, independently customizable UI section in this
-app — for example the navigation bar, hero section, sidebar, a search/toolbar region, the
-main content area, a pricing table, a footer. Use short kebab-case ids (e.g. "hero",
-"hero-search", "tool-categories").
+Do this in two phases — do NOT edit any files until phase 2 is explicitly approved.
 
-Rules:
-- Only tag sections that are safe to hide, move, or restyle without breaking navigation,
-  forms, auth, or core functionality.
-- Don't tag individual buttons, icons, or other tiny elements — only meaningful sections.
-- Don't change any existing behavior, styling, layout, or logic — only add the two data
-  attributes to elements that don't already have a data-dynara-panel.
-- Skip this app's admin/internal-only screens; focus on user-facing pages.
+PHASE 1 — Propose (no edits yet):
+Scan this app's user-facing pages and identify meaningful, independently customizable UI
+sections — for example the navigation bar, hero section, sidebar, a search/toolbar region,
+the main content area, a pricing table, a footer. Skip admin/internal-only screens.
 
-When done, tell me which sections you tagged and their ids, then run:
+For each candidate, list:
+- A short kebab-case id (e.g. "hero", "hero-search", "tool-categories")
+- A human label
+- The file and component/element it lives in
+- One line on why it's safe to hide, move, or restyle without breaking navigation, forms,
+  auth, or core functionality
+
+Present this list to me and wait for me to confirm, remove, or add entries. Don't tag
+individual buttons, icons, or other tiny elements — only meaningful sections.
+
+PHASE 2 — Tag (only after I approve the list):
+For each approved section only, add a \`data-dynara-panel="<id>"\` attribute (and optionally
+\`data-dynara-label="<Label>"\`) to its outermost element. Don't change any existing behavior,
+styling, layout, or logic — only add these two data attributes, and only to elements that
+don't already have a data-dynara-panel. Then run:
   npx dynara scan ./ --out public/.well-known/dynara.json
 to generate the Dynara manifest from the attributes you just added.`;
 const EDIT_PASSWORD_STORAGE_PREFIX = "dynara-edit-password";
@@ -253,8 +260,9 @@ export function IntegrationBuilder({
         <div className="mt-4">
           <p className="font-semibold text-slate-800">1. AI-assisted annotation (recommended)</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Paste this into Claude Code, Codex, Cursor, or any coding agent inside your repo. It reads your actual
-            components and tags the right sections — no manual selector-hunting.
+            Paste this into Claude Code, Codex, Cursor, or any coding agent inside your repo. It first proposes
+            which sections it found and waits for your approval, then only tags what you confirm — no
+            manual selector-hunting, no surprise edits.
           </p>
           <CodeBlock className="mt-3" label="Prompt for your coding agent" value={AI_AGENT_PROMPT} />
         </div>

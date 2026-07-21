@@ -25,7 +25,7 @@ import type { ContentEditDraft } from "@/lib/supabase/content-edit-drafts";
 import type { IntegrationManifest } from "@/types/manifest";
 
 const COLOR_SWATCHES = ["#0f172a", "#2563eb", "#0d9488", "#16a34a", "#f59e0b", "#dc2626", "#7c3aed"];
-const PRIVATE_SCAN_COMMAND = "npx dynara scan ./your-app --out public/.well-known/dynara.json";
+const PRIVATE_SCAN_COMMAND = "npx github:melchiorrefausto/dynara-cli scan ./your-app --out public/.well-known/dynara.json";
 const SDK_INSTALL_SNIPPET = `<script src="https://dynara.io/sdk/v1.js"></script>`;
 const AI_AGENT_PROMPT = `You are integrating this app with Dynara, an adaptive interface runtime.
 
@@ -51,7 +51,7 @@ For each approved section only, add a \`data-dynara-panel="<id>"\` attribute (an
 \`data-dynara-label="<Label>"\`) to its outermost element. Don't change any existing behavior,
 styling, layout, or logic — only add these two data attributes, and only to elements that
 don't already have a data-dynara-panel. Then run:
-  npx dynara scan ./ --out public/.well-known/dynara.json
+  npx github:melchiorrefausto/dynara-cli scan ./ --out public/.well-known/dynara.json
 to generate the Dynara manifest from the attributes you just added.`;
 const EDIT_PASSWORD_STORAGE_PREFIX = "dynara-edit-password";
 

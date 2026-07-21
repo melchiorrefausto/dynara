@@ -2,15 +2,16 @@ import type { LucideIcon } from "lucide-react";
 import {
   Braces,
   Code2,
-  Figma,
   FolderCode,
   LockKeyhole,
+  Palette,
   Puzzle,
   Search,
   Settings,
   ShieldCheck,
   Sparkles,
   Star,
+  Tag,
   Target,
   Workflow
 } from "lucide-react";
@@ -62,9 +63,9 @@ export const platform: { icon: LucideIcon; label: string; description: string; t
     tint: "bg-sky-100 text-sky-600"
   },
   {
-    icon: Figma,
+    icon: Palette,
     label: "Design system sync",
-    description: "Connect design tokens, component metadata, and product schemas from Figma or your own API.",
+    description: "Connect design tokens, component metadata, and product schemas from your own API — works with LLM-based and traditional software alike.",
     tint: "bg-indigo-100 text-indigo-600"
   },
   {
@@ -154,7 +155,7 @@ export const pricingTiers: {
     price: "Soon",
     detail: "Shared projects, schema history, generated profiles, and connected design systems.",
     cubes: 3,
-    features: ["Shared projects", "Schema version history", "Generated user profiles", "Figma design sync"],
+    features: ["Shared projects", "Schema version history", "Generated user profiles", "Design system sync"],
     featured: true
   },
   {
@@ -173,14 +174,14 @@ export const integrationSources: { icon: LucideIcon; label: string; description:
     description: "Scan a project folder and detect customizable UI sections automatically."
   },
   {
-    icon: Figma,
-    label: "Figma",
-    description: "Sync design tokens, components, and styles straight from your files."
-  },
-  {
     icon: Braces,
     label: "Your own API",
     description: "Publish a dynara.json manifest or call the SDK from any backend."
+  },
+  {
+    icon: Tag,
+    label: "Data attributes",
+    description: "Drop data-dynara-panel attributes in your markup for instant, zero-config auto-discovery."
   }
 ];
 
@@ -203,7 +204,7 @@ export const faqs: { question: string; answer: string }[] = [
   },
   {
     question: "Does this work with my existing design system?",
-    answer: "Yes. Connect Figma or your own token API so generated profiles stay in sync with your real components, not a copy of them."
+    answer: "Yes. Connect your own token API so generated profiles stay in sync with your real components, not a copy of them."
   },
   {
     question: "How is this different from feature flags?",

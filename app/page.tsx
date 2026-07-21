@@ -141,7 +141,7 @@ export default function HomePage() {
 
           <div className="mt-10 grid gap-6 lg:grid-cols-3">
             {developerSteps.map((step, index) => (
-              <Reveal key={step.title} delay={index * 100}>
+              <Reveal key={step.title} delay={index * 100} className="min-w-0">
                 <DeveloperStep {...step} />
               </Reveal>
             ))}

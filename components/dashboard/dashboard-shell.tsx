@@ -431,6 +431,13 @@ export function DashboardShell({ view = "home" }: { view?: "home" | "settings" }
                 if (id === activeManifestId) setActiveManifestId(next[0]?.id ?? "");
                 return next;
               });
+
+              if (persistenceMode === "supabase" && supabaseUserId) {
+                const supabase = createSupabaseBrowserClient();
+                if (supabase) {
+                  deleteManifestFromSupabase(supabase, supabaseUserId, id).catch(() => undefined);
+                }
+              }
             }}
           />
         </aside>

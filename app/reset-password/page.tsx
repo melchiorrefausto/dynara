@@ -119,6 +119,7 @@ export default function ResetPasswordPage() {
               <Input
                 className="pl-10 pr-10"
                 type={showPassword ? "text" : "password"}
+                placeholder="At least 8 characters"
                 required
                 disabled={!ready}
                 value={password}
@@ -142,6 +143,7 @@ export default function ResetPasswordPage() {
               <Input
                 className="pl-10"
                 type={showPassword ? "text" : "password"}
+                placeholder="Re-enter your new password"
                 required
                 disabled={!ready}
                 value={confirmPassword}

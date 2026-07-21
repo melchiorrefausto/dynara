@@ -116,7 +116,12 @@ export function AuthCard({ mode }: { mode: "login" | "signup" }) {
               <span className="mb-1.5 block text-sm font-semibold">Name</span>
               <div className="relative">
                 <UserRound className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
-                <Input className="pl-10" value={name} onChange={(event) => setName(event.target.value)} />
+                <Input
+                  className="pl-10"
+                  placeholder="Jane Cooper"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                />
               </div>
             </label>
           ) : null}
@@ -127,6 +132,7 @@ export function AuthCard({ mode }: { mode: "login" | "signup" }) {
               <Input
                 className="pl-10"
                 type="email"
+                placeholder="you@example.com"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
               />
@@ -146,6 +152,7 @@ export function AuthCard({ mode }: { mode: "login" | "signup" }) {
               <Input
                 className="pl-10 pr-10"
                 type={showPassword ? "text" : "password"}
+                placeholder="Enter your password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
               />

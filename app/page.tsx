@@ -17,6 +17,7 @@ import {
   developerSteps,
   faqs,
   integrationSources,
+  onPageWidgetSteps,
   platform,
   pricingTiers,
   trustSignals,
@@ -152,6 +153,35 @@ export default function HomePage() {
       </section>
 
       <section className="bg-slate-50 py-20">
+        <div className="mx-auto max-w-6xl px-6">
+          <Reveal className="mx-auto max-w-3xl text-center">
+            <Badge tone="purple">On-page widget</Badge>
+            <h2 className="mt-4 text-4xl font-bold tracking-normal text-balance">
+              Your users don't need the extension. They need a bubble.
+            </h2>
+            <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
+              The browser extension is how you build and preview a manifest — it was never meant to be how your
+              actual customers reach Dynara. Turn on the on-page widget and every visitor gets a branded, no-install
+              way to make your product theirs.
+            </p>
+          </Reveal>
+          <div className="mt-10 grid gap-5 md:grid-cols-3">
+            {onPageWidgetSteps.map((step, index) => (
+              <Reveal key={step.title} delay={index * 100}>
+                <div className="h-full rounded-2xl border border-border bg-white p-5 shadow-sm">
+                  <div className="grid h-11 w-11 place-items-center rounded-xl bg-violet-100 text-primary">
+                    <step.icon className="h-5 w-5" />
+                  </div>
+                  <h3 className="mt-5 text-lg font-bold">{step.title}</h3>
+                  <p className="mt-3 text-sm leading-6 text-muted-foreground">{step.description}</p>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="py-20">
         <div className="mx-auto max-w-6xl px-6">
           <Reveal className="flex flex-wrap items-end justify-between gap-4">
             <div className="max-w-3xl">

@@ -1,6 +1,6 @@
 export function HeroParticles() {
   return (
-    <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[620px] overflow-hidden">
+    <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[420px] overflow-hidden sm:h-[520px]">
       <div
         className="absolute inset-0"
         style={{

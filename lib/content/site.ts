@@ -5,9 +5,11 @@ import {
   FileCheck2,
   FolderCode,
   Gauge,
+  ImageUp,
   KeyRound,
   Lock,
   LockKeyhole,
+  MessageCircle,
   MousePointerClick,
   Palette,
   Puzzle,
@@ -97,6 +99,24 @@ export const contentHandoffSteps: { icon: LucideIcon; title: string; description
     icon: FileCheck2,
     title: "3. You review, then publish",
     description: "Every edit lands as a draft in your dashboard with a live preview. Reject it, or publish it live to every visitor with one click."
+  }
+];
+
+export const onPageWidgetSteps: { icon: LucideIcon; title: string; description: string }[] = [
+  {
+    icon: ImageUp,
+    title: "1. Upload your logo, flip it on",
+    description: "Set a brand logo and color from the dashboard, then toggle the widget on for that app. Off by default."
+  },
+  {
+    icon: MessageCircle,
+    title: "2. A branded bubble appears",
+    description: "No extension, no install, no login. Every visitor sees a small bubble in your color with your logo, right on the live site."
+  },
+  {
+    icon: Zap,
+    title: "3. Themes and views, one click away",
+    description: "Clicking it opens a panel of the themes and views you've declared. Applied instantly, remembered on their next visit."
   }
 ];
 
@@ -268,6 +288,10 @@ export const faqs: { question: string; answer: string }[] = [
   {
     question: "I built a site with an AI tool — can my client edit it without me?",
     answer: "Yes. Set an edit password from the dashboard, and your client can click any text or image on the live site to change it — no CMS, no login, no code. Every edit lands as a draft you review and publish, so nothing goes live without your sign-off."
+  },
+  {
+    question: "Do my users need to install the browser extension?",
+    answer: "No — that's optional, mainly for you as the developer to build and preview a manifest. Turn on the on-page widget instead and every visitor gets a branded bubble with zero install: click it, and they can switch between the themes and views you've declared, right on your site."
   },
   {
     question: "Does this work with my existing design system?",

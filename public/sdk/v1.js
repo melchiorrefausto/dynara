@@ -287,4 +287,15 @@
       if (typeof fn === "function") fn();
     }
   });
+
+  // Auto-discover /.well-known/dynara.json for sites that never call
+  // Dynara.init() explicitly (Level 2 integration). Deferred to
+  // DOMContentLoaded so an inline Dynara.init() script tag right after this
+  // one still wins the race and this becomes a no-op (ensureManifest already
+  // short-circuits once `manifest` is set).
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", function () { ensureManifest(); }, { once: true });
+  } else {
+    ensureManifest();
+  }
 })();

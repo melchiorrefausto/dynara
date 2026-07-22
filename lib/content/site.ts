@@ -3,6 +3,8 @@ import {
   Braces,
   Code2,
   FolderCode,
+  Gauge,
+  Lock,
   LockKeyhole,
   Palette,
   Puzzle,
@@ -13,7 +15,8 @@ import {
   Star,
   Tag,
   Target,
-  Workflow
+  Workflow,
+  Zap
 } from "lucide-react";
 
 export const navLinks: { href: string; label: string }[] = [
@@ -185,6 +188,45 @@ export const integrationSources: { icon: LucideIcon; label: string; description:
   }
 ];
 
+export const comparisonRows: { icon: LucideIcon; title: string; dynara: string; agentic: string }[] = [
+  {
+    icon: Zap,
+    title: "How changes happen",
+    dynara: "Instant CSS/DOM toggles from a manifest you control — no model call, no wait.",
+    agentic: "An agent generates new UI live from a prompt, then calls your API to build it."
+  },
+  {
+    icon: Gauge,
+    title: "Runtime cost",
+    dynara: "Zero inference cost. Every toggle is a client-side change, not an API call.",
+    agentic: "Every interaction is a live agent run — ongoing inference cost and latency."
+  },
+  {
+    icon: Lock,
+    title: "API exposure",
+    dynara: "None. Dynara never touches your backend — only pre-declared front-end surfaces.",
+    agentic: "Your API is modeled as agent-callable tools, including writes and deletes."
+  },
+  {
+    icon: ShieldCheck,
+    title: "Safety model",
+    dynara: "Closed set: users can only reveal, hide, or restyle what you explicitly declared.",
+    agentic: "Permission-gated agent actions with read/write/destructive tiers to manage."
+  },
+  {
+    icon: Code2,
+    title: "Setup",
+    dynara: "Add data attributes or publish a JSON manifest. No API schema required.",
+    agentic: "Scans your app and models your real API as a tool schema with permissions."
+  },
+  {
+    icon: Target,
+    title: "Best fit",
+    dynara: "Accessibility modes, white-label theming, reading views, safe self-serve customization.",
+    agentic: "Open-ended, on-demand feature generation and standing automations."
+  }
+];
+
 export const faqs: { question: string; answer: string }[] = [
   {
     question: "Do I need a credit card to start?",
@@ -209,5 +251,9 @@ export const faqs: { question: string; answer: string }[] = [
   {
     question: "How is this different from feature flags?",
     answer: "Feature flags toggle code paths you control. Dynara generates per-user interface profiles on top of a contract your app defines, without a redeploy."
+  },
+  {
+    question: "How is Dynara different from agentic customization tools?",
+    answer: "Agentic tools generate new functionality live by calling your API — powerful, but it comes with inference cost, latency, and a real API attack surface to govern. Dynara is deterministic: users can only reveal, hide, reskin, or reflow the surfaces you explicitly declared, instantly, with zero model calls and zero backend exposure. If you want safe, instant self-serve customization without opening your API to an agent, Dynara is the simpler layer for that job."
   }
 ];

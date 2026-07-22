@@ -12,6 +12,7 @@ import { RotatingWord } from "@/components/marketing/rotating-word";
 import { HeroParticles } from "@/components/marketing/hero-particles";
 import { FaqAccordion } from "@/components/marketing/faq-accordion";
 import {
+  comparisonRows,
   developerSteps,
   faqs,
   integrationSources,
@@ -172,6 +173,47 @@ export default function HomePage() {
                   </div>
                   <h3 className="mt-5 text-lg font-bold">{useCase.title}</h3>
                   <p className="mt-3 text-sm leading-6 text-muted-foreground">{useCase.description}</p>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="py-20">
+        <div className="mx-auto max-w-6xl px-6">
+          <Reveal className="text-center">
+            <Badge tone="purple">Dynara vs. agentic tools</Badge>
+            <h2 className="mt-4 text-4xl font-bold tracking-normal">
+              Built for safe, instant customization — not open-ended generation.
+            </h2>
+            <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
+              Agentic tools like Vendo let an AI agent build new features live by calling your API — powerful, but
+              it comes with inference cost, latency, and a real API surface to govern. Dynara takes a narrower,
+              safer approach: instant, deterministic changes to surfaces you explicitly declare, with zero model
+              calls and zero backend exposure.
+            </p>
+          </Reveal>
+          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {comparisonRows.map((row, index) => (
+              <Reveal key={row.title} delay={index * 80}>
+                <div className="h-full rounded-2xl border border-border bg-white p-5 shadow-sm">
+                  <div className="flex items-center gap-2.5">
+                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                      <row.icon className="h-4 w-4" />
+                    </div>
+                    <h3 className="text-sm font-bold">{row.title}</h3>
+                  </div>
+                  <div className="mt-4 space-y-3">
+                    <div className="rounded-lg bg-violet-50 p-3">
+                      <p className="text-xs font-bold uppercase tracking-normal text-primary">Dynara</p>
+                      <p className="mt-1 text-sm leading-6 text-slate-800">{row.dynara}</p>
+                    </div>
+                    <div className="rounded-lg bg-slate-50 p-3">
+                      <p className="text-xs font-bold uppercase tracking-normal text-muted-foreground">Agentic tools</p>
+                      <p className="mt-1 text-sm leading-6 text-muted-foreground">{row.agentic}</p>
+                    </div>
+                  </div>
                 </div>
               </Reveal>
             ))}

@@ -180,82 +180,221 @@
     var root = host.attachShadow ? host.attachShadow({ mode: "open" }) : host;
 
     var side = m.widgetPosition === "bottom-left" ? "left" : "right";
+    var closedTransform = side === "left" ? "translateX(-100%)" : "translateX(100%)";
+    var brandColor = m.color || "#7c3aed";
     var style = document.createElement("style");
     style.textContent =
       ":host{all:initial}" +
       "*{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif}" +
       ".dw-bubble{position:fixed;bottom:20px;" + side + ":20px;z-index:2147483000;width:52px;height:52px;" +
       "border-radius:9999px;border:none;cursor:pointer;box-shadow:0 8px 24px rgba(15,23,42,.24);" +
-      "display:grid;place-items:center;overflow:hidden;padding:0}" +
+      "display:grid;place-items:center;overflow:hidden;padding:0;transition:opacity 150ms ease,transform 150ms ease}" +
+      ".dw-bubble.dw-hidden{opacity:0;pointer-events:none;transform:scale(.85)}" +
       ".dw-bubble img{width:100%;height:100%;object-fit:cover}" +
       ".dw-bubble span{color:#fff;font-weight:700;font-size:18px}" +
-      ".dw-panel{position:fixed;bottom:82px;" + side + ":20px;z-index:2147483000;width:280px;max-height:70vh;" +
-      "overflow:auto;background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(15,23,42,.28);" +
-      "border:1px solid #e2e8f0;display:none;padding:14px}" +
-      ".dw-panel.dw-open{display:block}" +
-      ".dw-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;color:#64748b;margin:10px 0 6px}" +
-      ".dw-title:first-child{margin-top:0}" +
-      ".dw-option{display:block;width:100%;text-align:left;padding:8px 10px;border-radius:8px;border:1px solid #e2e8f0;" +
-      "background:#fff;color:#0f172a;font-size:13px;font-weight:600;margin-bottom:6px;cursor:pointer}" +
-      ".dw-option:hover{background:#f8fafc}" +
-      ".dw-option.dw-active{border-color:#0f172a;background:#0f172a;color:#fff}";
+      ".dw-sidebar{position:fixed;top:0;bottom:0;" + side + ":0;z-index:2147483000;width:340px;max-width:88vw;" +
+      "background:#fff;box-shadow:0 0 40px rgba(15,23,42,.28);border-" + (side === "left" ? "right" : "left") + ":1px solid #e2e8f0;" +
+      "display:flex;flex-direction:column;color:#0f172a;font-size:13px;" +
+      "transform:" + closedTransform + ";transition:transform 220ms ease}" +
+      ".dw-sidebar.dw-open{transform:translateX(0)}" +
+      ".dw-header{padding:14px 16px 12px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:10px;flex-shrink:0}" +
+      ".dw-header-icon{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,#7c3aed,#a855f7);" +
+      "display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden}" +
+      ".dw-header-icon img{width:100%;height:100%;object-fit:cover}" +
+      ".dw-header-icon span{color:#fff;font-size:13px;font-weight:800}" +
+      ".dw-header-text{flex:1;min-width:0}" +
+      ".dw-header-title{font-weight:700;font-size:14px}" +
+      ".dw-header-sub{font-size:10px;color:#94a3b8}" +
+      ".dw-header-badge{font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px;flex-shrink:0}" +
+      ".dw-close{border:none;background:transparent;cursor:pointer;color:#94a3b8;width:22px;height:22px;" +
+      "border-radius:6px;display:grid;place-items:center;flex-shrink:0;font-size:16px;line-height:1;margin-left:2px}" +
+      ".dw-close:hover{background:#f1f5f9;color:#0f172a}" +
+      ".dw-detected{font-size:10px;color:#94a3b8;padding:10px 16px 0;margin:0}" +
+      ".dw-body{flex:1;overflow-y:auto;padding:0 0 16px}" +
+      ".dw-section{padding:14px 16px 0}" +
+      ".dw-title{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin:0 0 8px}" +
+      ".dw-theme-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}" +
+      ".dw-theme{min-height:62px;padding:8px;border-radius:8px;border:1px solid #e8edf5;background:#fff;" +
+      "color:#334155;cursor:pointer;text-align:left}" +
+      ".dw-theme.dw-active{background:#111827;border-color:#111827;color:#fff}" +
+      ".dw-theme-swatches{display:flex;gap:3px;margin-bottom:7px}" +
+      ".dw-theme-swatch{width:16px;height:16px;border-radius:9999px;border:1px solid rgba(15,23,42,.1)}" +
+      ".dw-theme-label{display:block;font-size:11px;font-weight:800;line-height:1.1}" +
+      ".dw-views{display:flex;flex-wrap:wrap;gap:6px}" +
+      ".dw-view{background:#f1f5f9;color:#334155;border:none;border-radius:9999px;padding:6px 11px;" +
+      "font-size:11px;font-weight:800;cursor:pointer}" +
+      ".dw-view.dw-active{background:" + brandColor + ";color:#fff}" +
+      ".dw-footer{padding:14px 16px;border-top:1px solid #f1f5f9;flex-shrink:0}" +
+      ".dw-footer a{font-size:10px;color:#94a3b8;text-decoration:none}";
     root.appendChild(style);
 
     var bubble = document.createElement("button");
     bubble.className = "dw-bubble";
     bubble.type = "button";
-    bubble.style.background = m.color || "#7c3aed";
+    bubble.style.background = brandColor;
     bubble.setAttribute("aria-label", "Customize " + (m.name || "this page"));
     if (m.logoUrl) {
-      var img = document.createElement("img");
-      img.src = m.logoUrl;
-      img.alt = "";
-      bubble.appendChild(img);
+      var bubbleImg = document.createElement("img");
+      bubbleImg.src = m.logoUrl;
+      bubbleImg.alt = "";
+      bubble.appendChild(bubbleImg);
     } else {
-      var span = document.createElement("span");
-      span.textContent = (m.name || "D").slice(0, 1).toUpperCase();
-      bubble.appendChild(span);
+      var bubbleSpan = document.createElement("span");
+      bubbleSpan.textContent = (m.name || "D").slice(0, 1).toUpperCase();
+      bubble.appendChild(bubbleSpan);
     }
 
-    var panel = document.createElement("div");
-    panel.className = "dw-panel";
+    var sidebar = document.createElement("div");
+    sidebar.className = "dw-sidebar";
+
+    var header = document.createElement("div");
+    header.className = "dw-header";
+    var headerIcon = document.createElement("div");
+    headerIcon.className = "dw-header-icon";
+    headerIcon.innerHTML = '<span>D</span>';
+    var headerText = document.createElement("div");
+    headerText.className = "dw-header-text";
+    var headerTitle = document.createElement("div");
+    headerTitle.className = "dw-header-title";
+    headerTitle.textContent = "Dynara";
+    var headerSub = document.createElement("div");
+    headerSub.className = "dw-header-sub";
+    headerSub.textContent = "Interface runtime";
+    headerText.appendChild(headerTitle);
+    headerText.appendChild(headerSub);
+    var headerBadge = document.createElement("span");
+    headerBadge.className = "dw-header-badge";
+    headerBadge.style.background = brandColor + "22";
+    headerBadge.style.color = brandColor;
+    headerBadge.textContent = m.name || "App";
+    var closeButton = document.createElement("button");
+    closeButton.type = "button";
+    closeButton.className = "dw-close";
+    closeButton.setAttribute("aria-label", "Close");
+    closeButton.textContent = "×";
+    header.appendChild(headerIcon);
+    header.appendChild(headerText);
+    header.appendChild(headerBadge);
+    header.appendChild(closeButton);
+
+    var detected = document.createElement("p");
+    detected.className = "dw-detected";
+    detected.textContent = "Detected via Dynara SDK";
+
+    var body = document.createElement("div");
+    body.className = "dw-body";
 
     var saved = null;
     try {
       saved = JSON.parse(localStorage.getItem(widgetStorageKey(m)) || "null");
     } catch (e) { /* ignore */ }
 
-    function addOptions(kind, items, title) {
-      if (!items || !items.length) return;
-      var heading = document.createElement("p");
-      heading.className = "dw-title";
-      heading.textContent = title;
-      panel.appendChild(heading);
-
-      items.forEach(function (item) {
-        var button = document.createElement("button");
-        button.type = "button";
-        button.className = "dw-option" + (saved && saved.kind === kind && saved.id === item.id ? " dw-active" : "");
-        button.textContent = item.label || item.id;
-        button.addEventListener("click", function () {
-          applySelection(m, kind, item.id);
-          Array.prototype.forEach.call(panel.querySelectorAll(".dw-option"), function (el) {
-            el.classList.remove("dw-active");
-          });
-          button.classList.add("dw-active");
-        });
-        panel.appendChild(button);
-      });
+    function tokenColor(overrides, key) {
+      var value = overrides && overrides[key];
+      return value ? "hsl(" + value + ")" : null;
     }
 
-    addOptions("profile", m.profiles, "Themes");
-    addOptions("view", m.views, "Views");
+    function swatchesFor(profile) {
+      var overrides = profile.tokenOverrides || {};
+      var picks = [
+        tokenColor(overrides, "color-primary"),
+        tokenColor(overrides, "color-accent"),
+        tokenColor(overrides, "color-background")
+      ].filter(Boolean);
+      return picks.length ? picks.slice(0, 3) : [brandColor];
+    }
 
-    bubble.addEventListener("click", function () {
-      panel.classList.toggle("dw-open");
-    });
+    if (m.profiles && m.profiles.length) {
+      var themeSection = document.createElement("div");
+      themeSection.className = "dw-section";
+      var themeTitle = document.createElement("p");
+      themeTitle.className = "dw-title";
+      themeTitle.textContent = "Themes";
+      var themeGrid = document.createElement("div");
+      themeGrid.className = "dw-theme-grid";
 
-    root.appendChild(panel);
+      m.profiles.forEach(function (profile) {
+        var card = document.createElement("button");
+        card.type = "button";
+        card.className = "dw-theme" + (saved && saved.kind === "profile" && saved.id === profile.id ? " dw-active" : "");
+        if (profile.description) card.title = profile.description;
+
+        var swatchRow = document.createElement("span");
+        swatchRow.className = "dw-theme-swatches";
+        swatchesFor(profile).forEach(function (color) {
+          var dot = document.createElement("span");
+          dot.className = "dw-theme-swatch";
+          dot.style.background = color;
+          swatchRow.appendChild(dot);
+        });
+
+        var label = document.createElement("span");
+        label.className = "dw-theme-label";
+        label.textContent = profile.label || profile.id;
+
+        card.appendChild(swatchRow);
+        card.appendChild(label);
+        card.addEventListener("click", function () {
+          applySelection(m, "profile", profile.id);
+          Array.prototype.forEach.call(themeGrid.querySelectorAll(".dw-theme"), function (el) {
+            el.classList.remove("dw-active");
+          });
+          card.classList.add("dw-active");
+        });
+        themeGrid.appendChild(card);
+      });
+
+      themeSection.appendChild(themeTitle);
+      themeSection.appendChild(themeGrid);
+      body.appendChild(themeSection);
+    }
+
+    if (m.views && m.views.length) {
+      var viewSection = document.createElement("div");
+      viewSection.className = "dw-section";
+      var viewTitle = document.createElement("p");
+      viewTitle.className = "dw-title";
+      viewTitle.textContent = "Views";
+      var viewList = document.createElement("div");
+      viewList.className = "dw-views";
+
+      m.views.forEach(function (view) {
+        var pill = document.createElement("button");
+        pill.type = "button";
+        pill.className = "dw-view" + (saved && saved.kind === "view" && saved.id === view.id ? " dw-active" : "");
+        pill.textContent = view.label || view.id;
+        pill.addEventListener("click", function () {
+          applySelection(m, "view", view.id);
+          Array.prototype.forEach.call(viewList.querySelectorAll(".dw-view"), function (el) {
+            el.classList.remove("dw-active");
+          });
+          pill.classList.add("dw-active");
+        });
+        viewList.appendChild(pill);
+      });
+
+      viewSection.appendChild(viewTitle);
+      viewSection.appendChild(viewList);
+      body.appendChild(viewSection);
+    }
+
+    function openSidebar() {
+      sidebar.classList.add("dw-open");
+      bubble.classList.add("dw-hidden");
+    }
+
+    function closeSidebar() {
+      sidebar.classList.remove("dw-open");
+      bubble.classList.remove("dw-hidden");
+    }
+
+    bubble.addEventListener("click", openSidebar);
+    closeButton.addEventListener("click", closeSidebar);
+
+    sidebar.appendChild(header);
+    sidebar.appendChild(detected);
+    sidebar.appendChild(body);
+    root.appendChild(sidebar);
     root.appendChild(bubble);
 
     if (saved) applySelection(m, saved.kind, saved.id);

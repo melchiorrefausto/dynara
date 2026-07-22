@@ -248,7 +248,10 @@ export function generateDynaraJson(manifest: IntegrationManifest): string {
       constraints: manifest.constraints,
       profiles: manifest.profiles,
       contentBlocks: manifest.contentBlocks,
-      editKeyHash: manifest.editKeyHash
+      editKeyHash: manifest.editKeyHash,
+      logoUrl: manifest.logoUrl,
+      widgetEnabled: manifest.widgetEnabled,
+      widgetPosition: manifest.widgetPosition
     },
     null,
     2
@@ -270,7 +273,10 @@ export function generateScriptSnippet(manifest: IntegrationManifest): string {
       constraints: manifest.constraints,
       profiles: manifest.profiles,
       contentBlocks: manifest.contentBlocks,
-      editKeyHash: manifest.editKeyHash
+      editKeyHash: manifest.editKeyHash,
+      logoUrl: manifest.logoUrl,
+      widgetEnabled: manifest.widgetEnabled,
+      widgetPosition: manifest.widgetPosition
     },
     null,
     2

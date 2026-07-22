@@ -18,6 +18,9 @@ type ManifestRow = {
   profiles?: IntegrationManifest["profiles"] | null;
   content_blocks?: IntegrationManifest["contentBlocks"] | null;
   edit_key_hash?: string | null;
+  logo_url?: string | null;
+  widget_enabled?: boolean | null;
+  widget_position?: IntegrationManifest["widgetPosition"] | null;
   created_at: string;
   updated_at: string;
 };
@@ -39,6 +42,9 @@ function fromRow(row: ManifestRow): IntegrationManifest {
     profiles: row.profiles ?? undefined,
     contentBlocks: row.content_blocks ?? undefined,
     editKeyHash: row.edit_key_hash ?? undefined,
+    logoUrl: row.logo_url ?? undefined,
+    widgetEnabled: row.widget_enabled ?? undefined,
+    widgetPosition: row.widget_position ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   });
@@ -47,7 +53,7 @@ function fromRow(row: ManifestRow): IntegrationManifest {
 export async function loadManifests(supabase: SupabaseClient, _user: User): Promise<IntegrationManifest[] | null> {
   const { data, error } = await supabase
     .from("manifests")
-    .select("id,slug,name,color,app_id,version,panels,surfaces,views,actions,design_system,constraints,profiles,content_blocks,edit_key_hash,created_at,updated_at")
+    .select("id,slug,name,color,app_id,version,panels,surfaces,views,actions,design_system,constraints,profiles,content_blocks,edit_key_hash,logo_url,widget_enabled,widget_position,created_at,updated_at")
     .order("updated_at", { ascending: false })
     .returns<ManifestRow[]>();
 
@@ -75,7 +81,10 @@ export async function saveManifestToSupabase(supabase: SupabaseClient, userId: s
     constraints: manifest.constraints,
     profiles: manifest.profiles,
     content_blocks: manifest.contentBlocks,
-    edit_key_hash: manifest.editKeyHash ?? null
+    edit_key_hash: manifest.editKeyHash ?? null,
+    logo_url: manifest.logoUrl ?? null,
+    widget_enabled: manifest.widgetEnabled ?? false,
+    widget_position: manifest.widgetPosition ?? "bottom-right"
   });
 }
 

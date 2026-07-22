@@ -42,6 +42,10 @@ from (
     ('0007', 'column manifests.edit_key_hash', (exists (select 1 from information_schema.columns where table_schema='public' and table_name='manifests' and column_name='edit_key_hash'))),
 
     ('0008', 'table public.content_edit_drafts', (to_regclass('public.content_edit_drafts') is not null)),
-    ('0008', 'function public.submit_content_edit_draft', (to_regprocedure('public.submit_content_edit_draft(text,text,text,text,jsonb)') is not null))
+    ('0008', 'function public.submit_content_edit_draft', (to_regprocedure('public.submit_content_edit_draft(text,text,text,text,jsonb)') is not null)),
+
+    ('0009', 'column manifests.logo_url', (exists (select 1 from information_schema.columns where table_schema='public' and table_name='manifests' and column_name='logo_url'))),
+    ('0009', 'column manifests.widget_enabled', (exists (select 1 from information_schema.columns where table_schema='public' and table_name='manifests' and column_name='widget_enabled'))),
+    ('0009', 'column manifests.widget_position', (exists (select 1 from information_schema.columns where table_schema='public' and table_name='manifests' and column_name='widget_position')))
 ) as checks(migration, check_name, ok)
 order by migration, check_name;

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { Check, Copy, Download, ExternalLink, Eye, EyeOff, FileJson, Image as ImageIcon, Plus, ShieldCheck, Sparkles, Trash2, Type } from "lucide-react";
+import { Check, Copy, Download, ExternalLink, Eye, EyeOff, FileJson, Image as ImageIcon, MessageCircle, Plus, ShieldCheck, Sparkles, Trash2, Type } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -82,6 +82,8 @@ export function IntegrationBuilder({
   const [showEditPassword, setShowEditPassword] = useState(false);
   const manifestFileInputRef = useRef<HTMLInputElement>(null);
   const colorInputRef = useRef<HTMLInputElement>(null);
+  const logoFileInputRef = useRef<HTMLInputElement>(null);
+  const [logoError, setLogoError] = useState<string | null>(null);
 
   const dynaraJson = useMemo(() => generateDynaraJson(manifest), [manifest]);
   const isEmpty = manifest.panels.length === 0;
@@ -117,6 +119,27 @@ export function IntegrationBuilder({
     } catch (error) {
       setImportStatus("error");
     }
+  }
+
+  function importLogoFile(file: File) {
+    setLogoError(null);
+
+    if (!file.type.startsWith("image/")) {
+      setLogoError("Choose an image file.");
+      return;
+    }
+
+    if (file.size > 500 * 1024) {
+      setLogoError("Keep the logo under 500KB — it's embedded directly in the manifest.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      onUpdateManifest({ ...manifest, logoUrl: reader.result as string });
+    };
+    reader.onerror = () => setLogoError("Could not read that file.");
+    reader.readAsDataURL(file);
   }
 
   async function copyPrivateScanCommand() {
@@ -378,6 +401,44 @@ export function IntegrationBuilder({
                 <Plus className="h-4 w-4" />
               </button>
             </div>
+
+            <div className="flex items-center gap-3 border-t border-border pt-3">
+              <div
+                className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full border border-border bg-slate-50"
+                style={!manifest.logoUrl ? { background: manifest.color } : undefined}
+              >
+                {manifest.logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={manifest.logoUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <span className="text-xs font-bold text-white">{(manifest.name || "D").slice(0, 1).toUpperCase()}</span>
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold text-slate-800">Widget logo</p>
+                <p className="text-xs text-muted-foreground">Shown on the on-page widget bubble. Defaults to the app initial.</p>
+              </div>
+              <input
+                ref={logoFileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) importLogoFile(file);
+                  event.currentTarget.value = "";
+                }}
+              />
+              <Button size="sm" variant="secondary" onClick={() => logoFileInputRef.current?.click()}>
+                Upload
+              </Button>
+              {manifest.logoUrl ? (
+                <Button size="sm" variant="ghost" onClick={() => onUpdateManifest({ ...manifest, logoUrl: undefined })}>
+                  Remove
+                </Button>
+              ) : null}
+            </div>
+            {logoError ? <p className="text-xs font-semibold text-red-600">{logoError}</p> : null}
           </div>
         </div>
 
@@ -539,6 +600,64 @@ export function IntegrationBuilder({
             ))}
           </div>
         </div>
+      </div>
+
+      {/* On-page widget */}
+      <div className="rounded-lg border border-border bg-white p-5 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <MessageCircle className="h-4 w-4 text-slate-700" />
+            <h2 className="text-sm font-bold uppercase tracking-normal text-slate-800">On-page widget</h2>
+            <Badge tone="purple">No extension needed</Badge>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={Boolean(manifest.widgetEnabled)}
+            onClick={() => onUpdateManifest({ ...manifest, widgetEnabled: !manifest.widgetEnabled })}
+            className={cn(
+              "relative h-6 w-11 shrink-0 rounded-full transition",
+              manifest.widgetEnabled ? "bg-primary" : "bg-slate-200"
+            )}
+          >
+            <span
+              className={cn(
+                "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition",
+                manifest.widgetEnabled ? "left-5" : "left-0.5"
+              )}
+            />
+          </button>
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Renders a branded bubble on the live site — your logo, your color — that opens a panel where end-users
+          can switch between the themes and views declared below. No browser extension required; the extension
+          stays available separately for you to build and preview this manifest.
+        </p>
+
+        {manifest.widgetEnabled ? (
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-slate-600">Bubble position</span>
+            {(["bottom-right", "bottom-left"] as const).map((position) => (
+              <button
+                key={position}
+                type="button"
+                onClick={() => onUpdateManifest({ ...manifest, widgetPosition: position })}
+                className={cn(
+                  "rounded-full border px-3 py-1.5 text-xs font-semibold transition",
+                  (manifest.widgetPosition ?? "bottom-right") === position
+                    ? "border-slate-950 bg-slate-950 text-white"
+                    : "border-border bg-white text-slate-600 hover:bg-slate-50"
+                )}
+              >
+                {position === "bottom-right" ? "Bottom right" : "Bottom left"}
+              </button>
+            ))}
+            <span className="ml-2 text-xs text-muted-foreground">
+              Exposes {manifest.profiles.length} theme{manifest.profiles.length === 1 ? "" : "s"} and{" "}
+              {manifest.views.length} view{manifest.views.length === 1 ? "" : "s"} from below.
+            </span>
+          </div>
+        ) : null}
       </div>
 
       <div className="rounded-lg border border-border bg-white p-5 shadow-sm">

@@ -106,6 +106,11 @@ export type IntegrationManifest = {
   contentBlocks: ContentBlock[];
   /** SHA-256 hex hash of the password gating "Edit" mode. Unset = anyone with the extension can edit. */
   editKeyHash?: string;
+  /** Data URL or hosted URL for the on-page widget bubble icon. Falls back to the Dynara mark. */
+  logoUrl?: string;
+  /** Renders a branded bubble -> panel on the live site so end-users can switch themes/views without the extension. */
+  widgetEnabled?: boolean;
+  widgetPosition?: "bottom-right" | "bottom-left";
   createdAt: string;
   updatedAt: string;
 };

@@ -13,6 +13,7 @@ import { HeroParticles } from "@/components/marketing/hero-particles";
 import { FaqAccordion } from "@/components/marketing/faq-accordion";
 import {
   comparisonRows,
+  contentHandoffSteps,
   developerSteps,
   faqs,
   integrationSources,
@@ -114,6 +115,35 @@ export default function HomePage() {
                   </div>
                   <h2 className="mt-5 text-lg font-bold">{item.label}</h2>
                   <p className="mt-3 text-sm leading-6 text-muted-foreground">{item.description}</p>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="py-20">
+        <div className="mx-auto max-w-6xl px-6">
+          <Reveal className="mx-auto max-w-3xl text-center">
+            <Badge tone="green">Client handoff</Badge>
+            <h2 className="mt-4 text-4xl font-bold tracking-normal text-balance">
+              Built it with AI? Let your client run it — no CMS required.
+            </h2>
+            <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
+              Every AI-built app ships without a way for a non-technical client to change a headline or swap a
+              photo. Dynara adds that layer for free: click-to-edit text and images right on the live site, gated
+              by a password you set, with every change routed through you before it goes live.
+            </p>
+          </Reveal>
+          <div className="mt-10 grid gap-5 md:grid-cols-3">
+            {contentHandoffSteps.map((step, index) => (
+              <Reveal key={step.title} delay={index * 100}>
+                <div className="h-full rounded-2xl border border-border bg-white p-5 shadow-sm">
+                  <div className="grid h-11 w-11 place-items-center rounded-xl bg-emerald-100 text-emerald-600">
+                    <step.icon className="h-5 w-5" />
+                  </div>
+                  <h3 className="mt-5 text-lg font-bold">{step.title}</h3>
+                  <p className="mt-3 text-sm leading-6 text-muted-foreground">{step.description}</p>
                 </div>
               </Reveal>
             ))}

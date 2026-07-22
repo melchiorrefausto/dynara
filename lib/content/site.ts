@@ -2,10 +2,13 @@ import type { LucideIcon } from "lucide-react";
 import {
   Braces,
   Code2,
+  FileCheck2,
   FolderCode,
   Gauge,
+  KeyRound,
   Lock,
   LockKeyhole,
+  MousePointerClick,
   Palette,
   Puzzle,
   Search,
@@ -76,6 +79,24 @@ export const platform: { icon: LucideIcon; label: string; description: string; t
     label: "Safety contract",
     description: "Define what users can change while preserving required navigation, permissions, and product logic.",
     tint: "bg-rose-100 text-rose-600"
+  }
+];
+
+export const contentHandoffSteps: { icon: LucideIcon; title: string; description: string }[] = [
+  {
+    icon: KeyRound,
+    title: "1. Set an edit password",
+    description: "Gate content editing behind a password from the dashboard — anyone with it can edit, no login required."
+  },
+  {
+    icon: MousePointerClick,
+    title: "2. Client edits inline",
+    description: "They enable Edit mode on the live site, click any text or image, and change it right there. No CMS, no code, no dashboard."
+  },
+  {
+    icon: FileCheck2,
+    title: "3. You review, then publish",
+    description: "Every edit lands as a draft in your dashboard with a live preview. Reject it, or publish it live to every visitor with one click."
   }
 ];
 
@@ -243,6 +264,10 @@ export const faqs: { question: string; answer: string }[] = [
   {
     question: "What can a generated interface actually change?",
     answer: "Only what your app's manifest explicitly allows — surfaces, tokens, and actions you publish. Required navigation and permissions can never be hidden."
+  },
+  {
+    question: "I built a site with an AI tool — can my client edit it without me?",
+    answer: "Yes. Set an edit password from the dashboard, and your client can click any text or image on the live site to change it — no CMS, no login, no code. Every edit lands as a draft you review and publish, so nothing goes live without your sign-off."
   },
   {
     question: "Does this work with my existing design system?",
